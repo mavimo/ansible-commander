@@ -1,0 +1,86 @@
+---
+
+# first setup PostgreSQL as root
+
+- hosts: 127.0.0.1
+  gather_facts: False
+  user: root
+  vars:
+     tmpdir: /tmp
+     hstore: /usr/share/pgsql/contrib/hstore.sql
+  vars_prompt:
+    - name: "database_password"
+      prompt: "desired database password"
+      private: True
+      confirm: True
+
+  tasks:
+   
+      # install packages -- for Debian/Ubuntu users, change 'yum' to 'apt'
+      # package names may also have to change, we could detect this based
+      # on facts and only_if (TODO)
+
+      # - name: install postgresql
+      #   action: yum name=$item state=installed
+      #   with_items:
+      #      - postgresql 
+      #      - postgresql-server 
+      #      - postgresql-contrib
+        
+      - name: init database
+        action: command service postgresql initdb creates=/var/log/pgsql
+        ignore_errors: True
+
+      - name: start database
+        action: service name=postgresql state=started
+
+      - name: write /etc/ansible/commander.cfg
+        action: template src=./config.j2 dest=/etc/ansible/commander.cfg mode=600 owner=root
+
+      # TODO: install ansible plugins to /usr/share/ansible once written
+      # and save the inventory script in a safe place, but don't clobber any existing
+      # inventory files ...
+
+# now finish everything from the PostgreSQL user account
+
+- hosts: 127.0.0.1
+  sudo_user: postgres
+  gather_facts: False
+
+  tasks:
+
+      - name: init database
+        action: shell createdb ansible_commander
+        ignore_errors: True
+
+      - name: configure hstore
+        action: shell psql ansible_commander < $hstore
+        ignore_errors: True
+      
+      - name: transfer db setup sql
+        action: template src=./db.sql dest=${tmpdir}/ansible_commander_db.sql
+
+      - name: transfer database schema
+        action: template src=./schema.sql dest=${tmpdir}/ansible_commander_schema.sql
+      
+      - name: configure database user and password (2)
+        action: shell psql ansible_commander < ${tmpdir}/ansible_commander_db.sql
+        ignore_errors: True
+
+      - name: store database schema
+        action: shell psql ansible_commander < ${tmpdir}/ansible_commander_schema.sql
+        ignore_errors: True
+      
+      - name: remove generated schema file
+        action: file name=$item state=absent
+        with_items:
+           - ${tmpdir}/ansible_commander_db.sql 
+           - ${tmpdir}/ansible_commander_schema.sql
+
+      - name: write ansible-commander config file
+        action: shell echo ...
+        ignore_errors: True
+
+# All Done!  Now have fun managing your systems on 127.0.0.1:5000
+# TODO: use the pause module to explain next steps
+

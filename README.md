@@ -23,7 +23,12 @@ Dependencies
 Setup Instructions
 ==================
 
-* ...
+1) install ansible
+
+2) run ./setup.sh to use ansible to configure ansible-commander.  It will prompt
+   you for an initial database password.
+
+3) optionally proxy the Flask service with Apache or nginx
 
 Author/License Info
 ===================
