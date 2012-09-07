@@ -58,10 +58,10 @@
         ignore_errors: True
       
       - name: transfer db setup sql
-        action: template src=./db.sql dest=${tmpdir}/ansible_commander_db.sql
+        action: template src=./db.j2 dest=${tmpdir}/ansible_commander_db.sql mode=600
 
       - name: transfer database schema
-        action: template src=./schema.sql dest=${tmpdir}/ansible_commander_schema.sql
+        action: template src=./schema.j2 dest=${tmpdir}/ansible_commander_schema.sql mode=600
       
       - name: configure database user and password (2)
         action: shell psql ansible_commander < ${tmpdir}/ansible_commander_db.sql
