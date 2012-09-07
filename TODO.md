@@ -19,3 +19,24 @@ Things left to do for Ansible Commander first release
 - ansible callback plugin to save latest facts for each system
 - JS to view/browse inventory
 - modify setup playbook to install plugins
+
+Completed
+=========
+
+- README/LICENSE
+- flask hello world
+- initial setup playbook (mostly)
+
+Future releases (possible)
+==========================
+
+- browse ansible playbook results
+- dashboard of overall system happiness and so forth
+- browse and edit playbook content (???)
+- trigger ad-hoc execution (???)
+- trigger playbook execution (???)
+- ...
+
+
+
+
