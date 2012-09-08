@@ -14,11 +14,10 @@ Dependencies
 ============
 
 * python 2.6 or greater
+* python-psycopg2, a Python database library
 * Flask, a Python web framework
-* PostgreSQL with hstore
-* a web browser
-* optional Apache or Nginx fronting for the Flask REST service
-* a web server capable of serving static content
+* PostgreSQL & PostgreSQL contrib (for hstore)
+* optional Apache or Nginx fronting for the Flask service
 
 Setup Instructions
 ==================

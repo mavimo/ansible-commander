@@ -31,6 +31,9 @@
         action: command service postgresql initdb creates=/var/log/pgsql
         ignore_errors: True
 
+      - name: configure password authentication for ansible_commander database
+        action: lineinfile name=/var/lib/pgsql/data/pg_hba.conf line="host ansible_commander ansible_commander 127.0.0.1/32 password" insertafter=BOF regexp="ansible_commander"
+
       - name: start database
         action: service name=postgresql state=started
 

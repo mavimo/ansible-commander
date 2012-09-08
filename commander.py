@@ -19,6 +19,7 @@
 
 import flask
 from functools import wraps
+from acom import data
 DEBUG=True
 
 app = flask.Flask(__name__)
