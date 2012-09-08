@@ -146,6 +146,7 @@ class Base(object):
         return match
 
     def edit(self, name, properties, internal=False, hook=False):
+
         primary = self.FIELDS['primary']
         self.check_required_fields(properties, edit=True, internal=internal)
         result_name = name
@@ -207,9 +208,8 @@ class Base(object):
              SELECT t.id, p.id, p.key, p.value 
              FROM thing t
              LEFT JOIN properties p
-             ON p.thing_id = t.id
-             WHERE type    = %s
-
+             ON p.thing_id = t.id 
+             WHERE t.type = %s
         """
 
         cur.execute(sth, [self.TYPE])
@@ -224,39 +224,65 @@ class Base(object):
                 results[tid] = {}
             results[tid]['id'] = tid
             if internal or (key not in self.FIELDS['private'] and key not in self.FIELDS['hidden']):
-                results[tid][key] = json.loads(value) 
+                if value is not None:
+                    results[tid][key] = json.loads(value) 
         return results.values()
-        
-    def find(self, key, value, internal=False):
+    
+    def get_by_id(self, id, internal=False):
         cur = self.cursor()
-        # all values are stored in JSON in the DB, so ookups must also jsonify first
-        value = json.dumps(value)
         sth = """
-             SELECT t.id, p.id, p.key, p.value 
-             FROM thing t, properties p
-             WHERE p.thing_id = t.id
-             AND t.id IN (
-                 SELECT t.id
-                 FROM thing t
-                 LEFT JOIN properties p
-                 ON p.thing_id = t.id
-                 WHERE type  = %s
-                 AND p.key   = %s
-                 AND p.value = %s
-             )
+             SELECT t.id, p.id, p.key, p.value
+             FROM thing t 
+             LEFT JOIN properties p
+             ON t.id = p.thing_id
+             WHERE t.id = %s
+             AND t.type= %s
         """
-        cur.execute(sth, [self.TYPE,key,value])
+        cur.execute(sth, [id,self.TYPE])
         db_results = cur.fetchall()
-        matches = self._reformat(db_results, internal=internal)
-        return matches
-  
-    def lookup(self, value, internal=False):
-        results = self.find(self.FIELDS['primary'], value, internal=internal)    
+        results = self._reformat(db_results, internal=internal)
         if len(results) == 0:
             raise DoesNotExist()
         if len(results) > 1:
             raise Ambigious()
         return results[0]
+
+    
+    def find(self, key, value, internal=False, expect_one=False):
+        cur = self.cursor()
+        # all values are stored in JSON in the DB, so ookups must also jsonify first
+        value = json.dumps(value)
+        sth = """
+             SELECT t.id, p.id, p.key, p.value 
+             FROM thing t
+             LEFT JOIN properties p
+             ON p.thing_id = t.id 
+             WHERE t.type = %s
+             AND t.id IN (
+                 SELECT tt.id
+                    FROM thing tt, properties pp
+                    WHERE pp.thing_id = tt.id
+                    AND tt.type  = %s
+                    AND pp.key   = %s
+                    AND pp.value = %s
+             )
+        """
+
+        cur.execute(sth, [self.TYPE,self.TYPE,key,value])
+        db_results = cur.fetchall()
+ 
+        results = self._reformat(db_results, internal=internal)
+        if not expect_one:
+            return results
+        else:
+            if len(results) == 0:
+                raise DoesNotExist()
+            if len(results) > 1:
+                raise Ambigious()
+            return results[0]
+
+    def lookup(self, value, internal=False):
+        return self.find(self.FIELDS['primary'], value, internal=internal, expect_one=True)    
  
     def delete(self, value):
         cur = self.cursor()
