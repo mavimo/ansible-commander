@@ -20,7 +20,7 @@
 import time
 import acom.data as acom_data
 
-class Junk(Base):
+class Junk(acom_data.Base):
    
     def __init__(self):
     
@@ -30,7 +30,8 @@ class Junk(Base):
             required   = [ 'info' ],
             optional   = dict(labs=''),
             protected  = [ 'created_date', 'modified_date' ], 
-            private    = []
+            private    = [],
+            hidden     = []
         )
         super(Junk, self).__init__()
 

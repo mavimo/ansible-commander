@@ -35,7 +35,8 @@ class Groups(Base):
                'cached_all_child_groups',
                'cached_all_child_hosts'
            ],
-           private = []
+           private = [],
+           hidden  = []
        )
        super(Groups, self).__init__()
 

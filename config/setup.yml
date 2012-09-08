@@ -32,10 +32,13 @@
         ignore_errors: True
 
       - name: configure password authentication for ansible_commander database
-        action: lineinfile name=/var/lib/pgsql/data/pg_hba.conf line="host ansible_commander ansible_commander 127.0.0.1/32 password" insertafter=BOF regexp="ansible_commander"
+        action: lineinfile name=/var/lib/pgsql/data/pg_hba.conf line="host ansible_commander ansible_commander 127.0.0.1/32 password" insertafter=BOF regexp="ansible_commander ansible_commander"
+      
+      - name: configure password authentication for ansible_commander database
+        action: lineinfile name=/var/lib/pgsql/data/pg_hba.conf line="host ansible_commander_test ansible_commander 127.0.0.1/32 password" insertafter=BOF regexp="ansible_commander_test ansible_commander"
 
-      - name: start database
-        action: service name=postgresql state=started
+      - name: (re)start database
+        action: service name=postgresql state=restarted
 
       - name: write /etc/ansible/commander.cfg
         action: template src=./config.j2 dest=/etc/ansible/commander.cfg mode=600 owner=root
@@ -53,8 +56,11 @@
   tasks:
 
       - name: init database
-        action: shell createdb ansible_commander
+        action: shell createdb $item
         ignore_errors: True
+        with_items:
+           - ansible_commander_test
+           - ansible_commander
 
       - name: transfer db setup sql
         action: template src=./db.j2 dest=${tmpdir}/ansible_commander_db.sql mode=600

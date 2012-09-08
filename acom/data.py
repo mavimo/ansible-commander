@@ -23,8 +23,6 @@ import psycopg2.extras as extras
 import json
 import time
 
-TESTMODE=False
-
 # TODO: make a seperate config class
 parser  = ConfigParser.ConfigParser()
 parser.read("/etc/ansible/commander.cfg")
@@ -32,9 +30,24 @@ parser.read("/etc/ansible/commander.cfg")
 dbname  = 'ansible_commander'
 dbuser  = 'ansible_commander'
 dbpass  = parser.get('database', 'password')
-connstr = "dbname='%s' user='%s' host='localhost' password='%s'" % (dbname,dbuser,dbpass)
 
-conn = psycopg2.connect(connstr)
+TESTMODE=False
+
+def connect(testmode=False):
+   global dbname
+   if TESTMODE:
+       dbname = "%s_test" % dbname
+   connstr = "dbname='%s' user='%s' host='localhost' password='%s'" % (dbname,dbuser,dbpass)
+   return psycopg2.connect(connstr)
+
+conn = connect()
+
+def test_mode():
+   global conn
+   global TESTMODE
+   TESTMODE=True
+   conn.close()
+   conn = connect(testmode=True)
 
 class DataException(Exception):
    pass
@@ -105,9 +118,11 @@ class Base(object):
         primary = self.FIELDS['primary']
         properties[primary] = name
         self.check_required_fields(properties)
-        matches = self.lookup(properties[primary])
-        if len(matches) != 0:
+        try:
+            match = self.lookup(properties[primary])
             raise AlreadyExists()
+        except DoesNotExist:
+            pass
         cur = self.cursor()
         sth = """
             INSERT INTO thing (type) VALUES (%s)
@@ -125,10 +140,10 @@ class Base(object):
         """
         cur.executemany(sth, inserts)
         conn.commit()
-        matches = self.find(primary, properties[primary])
+        match = self.lookup(properties[primary])
         if not hook:
-            self.compute_derived_fields_on_add(name, matches[0])
-        return matches[0]
+            self.compute_derived_fields_on_add(name, match)
+        return match
 
     def edit(self, name, properties, internal=False, hook=False):
         primary = self.FIELDS['primary']
@@ -136,30 +151,28 @@ class Base(object):
         result_name = name
         
         if primary in properties and name != properties[primary]:
-            matches = self.lookup(properties[primary], internal=True)
-            if len(matches):
+            try:
+                matches = self.lookup(properties[primary], internal=True)
                 raise AlreadyExists()
+            except DoesNotExist:
+                pass
             result_name = properties[primary]
-
-        matches = self.lookup(name, internal=True)
-        if len(matches) == 0:
-            raise DoesNotExist()
-        elif len(matches) != 1:
-            raise Ambigious()
-        id = matches[0]['id']
+            
+        match = self.lookup(name, internal=True)
+        id = match['id']
 
         for (k,v) in properties.iteritems():
-            if k not in matches[0]:
+            if k not in match:
                 # TODO: would be nice to execute many here
                 self._insert_kv(id,k,v)
-            elif matches[0][k] != properties[k]:
+            elif match[k] != properties[k]:
                 self._update_kv(id,k,v)
-
-        matches = self.lookup(result_name, internal=True)
+        
+        match = self.lookup(result_name, internal=True)
         if not hook:
-            self.compute_derived_fields_on_edit(result_name, matches[0])
-        matches = self.lookup(result_name, internal=internal)
-        return matches[0]
+            self.compute_derived_fields_on_edit(result_name, match)
+        match = self.lookup(result_name, internal=internal)
+        return match
 
     def _insert_kv(self, id, k, v):
         cur = self.cursor()
@@ -209,9 +222,9 @@ class Base(object):
         for (tid, pid, key, value) in db_results:
             if not tid in results:
                 results[tid] = {}
-            if internal or key not in self.FIELDS['private']:
-                results[tid]['id'] = tid
-            results[tid][key] = json.loads(value) 
+            results[tid]['id'] = tid
+            if internal or (key not in self.FIELDS['private'] and key not in self.FIELDS['hidden']):
+                results[tid][key] = json.loads(value) 
         return results.values()
         
     def find(self, key, value, internal=False):
@@ -238,8 +251,13 @@ class Base(object):
         return matches
   
     def lookup(self, value, internal=False):
-        return self.find(self.FIELDS['primary'], value, internal=internal)    
-
+        results = self.find(self.FIELDS['primary'], value, internal=internal)    
+        if len(results) == 0:
+            raise DoesNotExist()
+        if len(results) > 1:
+            raise Ambigious()
+        return results[0]
+ 
     def delete(self, value):
         cur = self.cursor()
         obj = self.find(self.FIELDS['primary'], value)    
@@ -254,7 +272,9 @@ class Base(object):
         cur.execute(sth, [id])
         conn.commit()
 
-    def clear_testmode(self):
+    def clear_test_data(self):
+        if not TESTMODE:
+            raise Exception("only supported in TESTMODE")
         cur = self.cursor()
         sth = """
             DELETE from thing where type=%s AND EXISTS (
@@ -266,110 +286,3 @@ class Base(object):
         cur.execute(sth, [self.TYPE])
         conn.commit()
             
-
-class Groups(Base):
-
-   def __init__(self):
-
-       self.TYPE = 'group'
-       self.FIELDS = dict(
-           primary  = 'name',
-           required = [ 'parent' ],
-           optional = {},
-           protected = [
-               'cached_direct_child_groups',
-               'cached_direct_child_hosts',
-               'cached_all_child_groups',
-               'cached_all_child_hosts'
-           ],
-           private = []
-       )
-       super(Groups, self).__init__()
-
-class Junk(Base):
-   
-    def __init__(self):
-    
-        self.TYPE = 'junk'
-        self.FIELDS = dict(
-            primary    = 'name',
-            required   = [ 'info' ],
-            optional   = dict(labs=''),
-            protected  = [ 'created_date', 'modified_date' ], 
-            private    = []
-        )
-        super(Junk, self).__init__()
-
-    def compute_derived_fields_on_add(self, name, properties):
-        properties['created_date'] = time.time()
-        self.edit(name, properties, internal=True, hook=True)
-
-    def compute_derived_fields_on_edit(self, name, properties):
-        properties['modified_date'] = time.time()
-        self.edit(name, properties, internal=True, hook=True)
-
-
-if __name__ == '__main__':
-
-    TESTMODE=True
-
-    j = Junk()
-    j.clear_testmode()
-
-    print 'insert pinky'
-    print j.add('pinky', dict(info='narf'))
-
-    try:
-        print 'insert pinky'
-        print j.add('pinky', dict(info='narf'))
-    except AlreadyExists:
-        print 'already exists'
-
-    print 'insert brain'
-    print j.add('brain', dict(info='aypwip'))
-
-    print 'list'
-    print j.list()
-
-    print 'lookup pinky'
-    print j.lookup('pinky')
-
-    print 'edit pinky'
-    j.edit('pinky', dict(info='troz', labs='acme'))
-
-    # again
-    j.edit('pinky', dict(info='fjord', labs='acme'))
-
-    # with invalid fields
-    try:
-        j.edit('pinky', dict(info='fjord', labs='acme', imaginary='...'))
-    except InvalidInput:
-        print 'invalid input blocked'
-        pass
-
-    # with attempting to rename to brain
-    try:
-        j.edit('pinky', dict(name='brain'))
-    except AlreadyExists:
-        print 'rename blocked'
-        pass
-
-    # with attempting to rename to Pinkasso
-    j.edit('pinky', dict(name='pinkasso', info='le narf'))
-
-    print 'lookup pinky'
-    print j.lookup('pinkasso')
-
-    print 'lookup brain'
-    print j.find('name','brain')
-
-    print 'lookup snowball'
-    print j.find('name','snowball')
-
-    print 'delete brain'
-    print j.delete('brain')
-
-    print 'list'
-    print j.list()
- 
-
