@@ -18,7 +18,7 @@ CREATE TABLE properties
   value TEXT
 );
 
-CREATE INDEX properties_thing_idx ON properties (thing_id, key);
+CREATE UNIQUE INDEX properties_thing_idx ON properties (thing_id, key);
 
 CREATE INDEX properties_key_idx ON properties (key);
 
