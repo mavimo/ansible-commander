@@ -17,16 +17,24 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
+DEBUG=True
+DEFAULT_USER='admin'
+DEFAULT_PASS='gateisdown'
+
 import flask
 from functools import wraps
 from acom import data
-DEBUG=True
+from acom.types.users import Users
 
 app = flask.Flask(__name__)
 
 def check_auth(username, password):
-    # TODO: hit user database
-    return username == 'admin' and password == 'secret'
+    u = Users()
+    all = u.list()
+    if len(all) == 0 and (username == DEFAULT_USER and password == DEFAULT_PASS):
+        u.add(DEFAULT_USER, dict(password=DEFAULT_PASS))
+        return True
+    return u.login(username, password)
 
 def authenticate(msg='Authenticate'):
     message = dict(message=msg)
