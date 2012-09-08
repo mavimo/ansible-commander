@@ -1,11 +1,14 @@
 Things left to do for Ansible Commander first release
 =====================================================
 
-- write python code to access hstore, understand groups and hosts in hstore
+- encrypt passwords
+- groups class + tests
+- expose groups over REST
+- host class + tests
+- expose hosts over REST
+- expose users over REST
 - write an ansible inventory (python) script that accesses the database
-- REST API plumbing in Flask
-- playbook to insert initial users into database
-- Foundation or Bootstrap skeleton of app
+- Foundation or Bootstrap skeleton of GUI app
 - Login dialog to get username/password
 - Javascript MVC widgets list users and groups
 - JS to add hosts
@@ -26,6 +29,9 @@ Completed
 - README/LICENSE
 - flask hello world
 - initial setup playbook (mostly)
+- python code to access datalayer
+- basic user class
+- basic auth layer wired in to user class
 
 Future releases (possible)
 ==========================
