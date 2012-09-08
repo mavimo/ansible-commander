@@ -2,6 +2,9 @@ import psycopg2
 import ConfigParser
 import psycopg2.extras as extras
 import json
+import time
+
+TESTMODE=False
 
 # TODO: make a seperate config class
 parser  = ConfigParser.ConfigParser()
@@ -32,13 +35,32 @@ class Ambigious(DataException):
 class Base(object):
 
     def __init__(self):
-        self.type = None
+        pass
+
+    def compute_derived_fields_on_edit(self, name, results):
+        pass
+
+    def compute_derived_fields_on_add(self, name, results):
+        pass
 
     def cursor(self):
         return conn.cursor()
 
-    def check_required_fields(self, fields, edit=False):
- 
+    def check_required_fields(self, fields, edit=False, internal=False):
+
+        if internal and TESTMODE and not 'TESTMODE' in self.FIELDS['protected']:
+            self.FIELDS['protected'].append('TESTMODE')
+            fields['TESTMODE'] = 1
+
+        if 'id' in fields:
+            fields.pop('id')
+
+        # do not allow users to edit protected fields
+        if not internal: 
+            for p in self.FIELDS['protected']:
+                if p in fields:
+                    fields.pop(p) 
+
         if not edit:
             if fields.get(self.FIELDS['primary'], None) is None:
                 raise InvalidInput("missing primary field: %s" % self.FIELDS['primary'])
@@ -55,25 +77,52 @@ class Base(object):
 
         # no unexpected fields
         for f in fields:
+            if internal and f in self.FIELDS['protected']:
+                continue
             if f not in self.FIELDS['required'] and f not in self.FIELDS['optional'] and f != self.FIELDS['primary']:
                 raise InvalidInput("invalid field %s" % f)
 
-    def add(self, properties):
-        self.check_required_fields(properties)
+    def add(self, name, properties, hook=False):
         primary = self.FIELDS['primary']
+        properties[primary] = name
+        self.check_required_fields(properties)
         matches = self.lookup(properties[primary])
         if len(matches) != 0:
             raise AlreadyExists()
-        return self._insert(properties)
+        cur = self.cursor()
+        sth = """
+            INSERT INTO thing (type) VALUES (%s)
+            RETURNING id
+        """
+        cur.execute(sth, [self.TYPE])
+        tid = cur.fetchone()[0]
 
-    def edit(self, name, properties):
+        inserts = []
+        for (k,v) in properties.iteritems():
+            inserts.append((tid, k, json.dumps(v)))
+    
+        sth = """
+            INSERT INTO properties (thing_id,key,value) VALUES(%s,%s,%s)
+        """
+        cur.executemany(sth, inserts)
+        conn.commit()
+        matches = self.find(primary, properties[primary])
+        if not hook:
+            self.compute_derived_fields_on_add(name, matches[0])
+        return matches[0]
+
+    def edit(self, name, properties, internal=False, hook=False):
         primary = self.FIELDS['primary']
-        self.check_required_fields(properties, edit=True)
-        if primary in properties:
-            matches = self.lookup(properties[primary])
+        self.check_required_fields(properties, edit=True, internal=internal)
+        result_name = name
+        
+        if primary in properties and name != properties[primary]:
+            matches = self.lookup(properties[primary], internal=True)
             if len(matches):
                 raise AlreadyExists()
-        matches = self.lookup(name)
+            result_name = properties[primary]
+
+        matches = self.lookup(name, internal=True)
         if len(matches) == 0:
             raise DoesNotExist()
         elif len(matches) != 1:
@@ -86,6 +135,12 @@ class Base(object):
                 self._insert_kv(id,k,v)
             elif matches[0][k] != properties[k]:
                 self._update_kv(id,k,v)
+
+        matches = self.lookup(result_name, internal=True)
+        if not hook:
+            self.compute_derived_fields_on_edit(result_name, matches[0])
+        matches = self.lookup(result_name, internal=internal)
+        return matches[0]
 
     def _insert_kv(self, id, k, v):
         cur = self.cursor()
@@ -114,29 +169,7 @@ class Base(object):
         cur.execute(sth,[v,id,k])
         conn.commit()
  
-    def _insert(self, properties):
-        primary = self.FIELDS['primary']
-        cur = self.cursor()
-        sth = """
-            INSERT INTO thing (type) VALUES (%s)
-            RETURNING id
-        """
-        cur.execute(sth, [self.TYPE])
-        tid = cur.fetchone()[0]
-
-        inserts = []
-        for (k,v) in properties.iteritems():
-            inserts.append((tid, k, json.dumps(v))) 
-       
-        sth = """
-            INSERT INTO properties (thing_id,key,value) VALUES(%s,%s,%s)
-        """
-        cur.executemany(sth, inserts)
-        conn.commit()
-        matches = self.find(primary, properties[primary])
-        return matches[0]
-
-    def list(self):
+    def list(self, internal=False):
         cur = self.cursor()
         sth = """
              SELECT t.id, p.id, p.key, p.value 
@@ -149,19 +182,20 @@ class Base(object):
 
         cur.execute(sth, [self.TYPE])
         db_results = cur.fetchall()
-        return self._reformat(db_results)
+        return self._reformat(db_results, internal=internal)
 
-    def _reformat(self, db_results):
+    def _reformat(self, db_results, internal=False):
 
         results = {}
         for (tid, pid, key, value) in db_results:
             if not tid in results:
                 results[tid] = {}
+            if internal or key not in self.FIELDS['private']:
+                results[tid]['id'] = tid
             results[tid][key] = json.loads(value) 
-            results[tid]['id'] = tid
         return results.values()
         
-    def find(self, key, value):
+    def find(self, key, value, internal=False):
         cur = self.cursor()
         # all values are stored in JSON in the DB, so ookups must also jsonify first
         value = json.dumps(value)
@@ -181,11 +215,11 @@ class Base(object):
         """
         cur.execute(sth, [self.TYPE,key,value])
         db_results = cur.fetchall()
-        matches = self._reformat(db_results)
+        matches = self._reformat(db_results, internal=internal)
         return matches
   
-    def lookup(self, value):
-        return self.find(self.FIELDS['primary'], value)    
+    def lookup(self, value, internal=False):
+        return self.find(self.FIELDS['primary'], value, internal=internal)    
 
     def delete(self, value):
         cur = self.cursor()
@@ -201,10 +235,14 @@ class Base(object):
         cur.execute(sth, [id])
         conn.commit()
 
-    def clear(self):
+    def clear_testmode(self):
         cur = self.cursor()
         sth = """
-            DELETE from thing where type=%s
+            DELETE from thing where type=%s AND EXISTS (
+                SELECT thing_id from properties
+                   WHERE properties.thing_id = thing.id
+                   AND properties.key = 'TESTMODE'
+                ) 
         """
         cur.execute(sth, [self.TYPE])
         conn.commit()
@@ -219,43 +257,57 @@ class Groups(Base):
            primary  = 'name',
            required = [ 'parent' ],
            optional = {},
-           private = [
+           protected = [
                'cached_direct_child_groups',
                'cached_direct_child_hosts',
                'cached_all_child_groups',
                'cached_all_child_hosts'
-           ]
+           ],
+           private = []
        )
+       super(Groups, self).__init__()
 
 class Junk(Base):
    
     def __init__(self):
     
-        self.TYPE = 'group'
+        self.TYPE = 'junk'
         self.FIELDS = dict(
-            primary  = 'name',
-            required = [ 'info' ],
-            optional = dict(labs=''),
-            private = []
+            primary    = 'name',
+            required   = [ 'info' ],
+            optional   = dict(labs=''),
+            protected  = [ 'created_date', 'modified_date' ], 
+            private    = []
         )
+        super(Junk, self).__init__()
+
+    def compute_derived_fields_on_add(self, name, properties):
+        properties['created_date'] = time.time()
+        self.edit(name, properties, internal=True, hook=True)
+
+    def compute_derived_fields_on_edit(self, name, properties):
+        properties['modified_date'] = time.time()
+        self.edit(name, properties, internal=True, hook=True)
 
 
 if __name__ == '__main__':
 
+    TESTMODE=True
+
     j = Junk()
-    j.clear()
+    j.clear_testmode()
 
     print 'insert pinky'
-    print j.add(dict(name='pinky', info='narf'))
+    print j.add('pinky', dict(info='narf'))
 
     try:
         print 'insert pinky'
-        print j.add(dict(name='pinky', info='narf'))
+        print j.add('pinky', dict(info='narf'))
     except AlreadyExists:
         print 'already exists'
 
     print 'insert brain'
-    print j.add(dict(name='brain', info='aypwip'))
+    print j.add('brain', dict(info='aypwip'))
 
     print 'list'
     print j.list()
