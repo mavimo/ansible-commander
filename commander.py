@@ -17,13 +17,43 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
+import flask
+from functools import wraps
+DEBUG=True
 
-from flask import Flask
-app = Flask(__name__)
+app = flask.Flask(__name__)
+
+def check_auth(username, password):
+    # TODO: hit user database
+    return username == 'admin' and password == 'secret'
+
+def authenticate(msg='Authenticate'):
+    message = dict(message=msg)
+    resp = flask.jsonify(message)
+    resp.status_code = 401
+    resp.headers['WWW-Authenticate'] = 'Basic realm="Ansible Commander"'
+    return resp
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = flask.request.authorization
+        if not auth: 
+            return authenticate()
+
+        elif not check_auth(auth.username, auth.password):
+            return authenticate("Authentication Failed.")
+        return f(*args, **kwargs)
+    return decorated
 
 @app.route('/')
 def hello_world():
-    return 'Hello World!'
+    return 'This is Ansible Commander'
+
+@app.route('/api/groups')
+@requires_auth
+def groups():
+    return 'success'
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=DEBUG)
