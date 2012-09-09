@@ -2,7 +2,6 @@ Things left to do for Ansible Commander first release
 =====================================================
 
 - encrypt passwords
-- groups class + tests
 - expose groups over REST
 - host class + tests
 - expose hosts over REST
