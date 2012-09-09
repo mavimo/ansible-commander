@@ -22,11 +22,13 @@ DEFAULT_USER='admin'
 DEFAULT_PASS='gateisdown'
 
 import flask
+import random
 from functools import wraps
 from acom import data
 from acom.types.users import Users
 
 app = flask.Flask(__name__)
+random.seed()
 
 def check_auth(username, password):
     u = Users()
