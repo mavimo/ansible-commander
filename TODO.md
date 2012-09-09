@@ -1,6 +1,12 @@
 Things left to do for Ansible Commander first release
 =====================================================
 
+
+- editing the host's groups hash calls the right method
+  and you can set it on creation
+- editing the group's parents hash cells the right method
+  and you can set it on creation 
+
 - expose groups over REST
 - expose hosts over REST
 - expose editing subgroups over REST

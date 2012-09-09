@@ -93,8 +93,8 @@ class Hosts(acom_data.Base):
         self.FIELDS = dict(
             primary  = 'name',
             required = [],
-            optional = dict(vars={}, description='', comment=''),
-            protected = [ '_created_date', '_modified_date', '_groups', '_blended_vars' ],
+            optional = dict(vars={}, description='', comment='', groups=[]),
+            protected = [ '_created_date', '_modified_date', '_blended_vars' ],
             private = [],
             hidden  = []
         )
@@ -102,11 +102,17 @@ class Hosts(acom_data.Base):
            
     def compute_derived_fields_on_add(self, name, properties):
         properties['_created_date'] = time.time()
+        if 'groups' in properties:
+            self.set_groups(name, properties['groups'])
+            properties.pop('groups')
         self.edit(name, properties, internal=True, hook=True)
         self.compute_blended_vars(name)
 
     def compute_derived_fields_on_edit(self, name, properties):
         properties['_modified_date'] = time.time()
+        if 'groups' in properties:
+            self.set_groups(name, properties['groups'])
+            properties.pop('groups')
         self.edit(name, properties, internal=True, hook=True)
         self.compute_blended_vars(name)
 
@@ -115,9 +121,9 @@ class Hosts(acom_data.Base):
         info = self.lookup(name)
 
         vars = {}
-        if '_groups' in info:
+        if 'groups' in info:
             chain = []
-            for gname in info['_groups']:
+            for gname in info['groups']:
                 chain.append(g.lookup(gname))
                 ancestors = g.get_ancestors(gname)
                 chain.extend(ancestors)
@@ -172,8 +178,11 @@ class Hosts(acom_data.Base):
 
         for gname in group_names:
             g.recompute_relationships(gname)
+            ancestors = g.get_ancestors(gname)
+            for a in ancestors:
+                g.recompute_relationships(a['name'])
 
-        self.edit(name, dict(_groups=group_names), internal=True, hook=True)
+        self.edit(name, dict(groups=group_names), internal=True, hook=True)
         self.compute_blended_vars(name)
         return self.get_groups(name)
 
@@ -189,7 +198,7 @@ class Hosts(acom_data.Base):
         group_ids = [ p['_group_id'] for p in host_links ]
         groups = [ g.get_by_id(id, allow_missing=True) for id in group_ids ]
         groups = [ gx for gx in groups if gx is not None ]
-        return parents
+        return groups
 
     def hosts_for_group_name(self, group_name):
         ''' find the hosts found in a given group '''
@@ -226,10 +235,10 @@ class Groups(acom_data.Base):
         self.FIELDS = dict(
             primary  = 'name',
             required = [],
-            optional = dict(vars={}, description='', comment=''),
+            optional = dict(vars={}, description='', comment='', parents=[]),
             protected = [ 
                 '_created_date', '_modified_date', 
-                '_ancestors', '_descendents', '_parents', '_children', 
+                '_ancestors', '_descendents', '_children', 
                 '_indirect_hosts', '_direct_hosts'
             ],
             private = [],
@@ -240,11 +249,15 @@ class Groups(acom_data.Base):
     def compute_derived_fields_on_add(self, name, properties):
         properties['_created_date'] = time.time()
         self.edit(name, properties, internal=True, hook=True)
+        if 'parents' in properties:
+            self.set_parents(name, properties['parents'])
         self.recompute_relationships(name)
         
     def compute_derived_fields_on_edit(self, name, properties):
         properties['_modified_date'] = time.time()
         self.edit(name, properties, internal=True, hook=True)
+        if 'parents' in properties:
+            self.set_parents(name, properties['parents'])
         self.recompute_relationships(name)
 
     def get_parent_links(self, name):
@@ -344,7 +357,7 @@ class Groups(acom_data.Base):
         properties = {}
         properties['_ancestors']   = list(set([ p['name'] for p in ancestors ]))
         properties['_descendents'] = list(set([ p['name'] for p in descendents ]))
-        properties['_parents']     = [ p['name'] for p in direct_parents ]
+        properties['parents']     = [ p['name'] for p in direct_parents ]
         properties['_children']    = [ p['name'] for p in direct_children ] 
         
         h = Hosts()
@@ -379,12 +392,12 @@ class Groups(acom_data.Base):
         
         for host in direct_hosts:
             host_info = h.lookup(host) 
-            host_groups = host_info['_groups'] # ...
+            host_groups = host_info['groups'] # ...
             new_groups = [ hx for hx in host_groups if hx != name ]
             h.set_groups(name, new_groups)
     
         for m in matching_hosts:
-            groups = m['_groups']
+            groups = m['groups']
             groups = [ g for g in groups if g != name ]
             h.set_groups(m['name'], groups)       
 
@@ -392,7 +405,6 @@ if __name__ == '__main__':
 
     acom_data.test_mode()
 
-    #print 'adding united states'
     g = Groups()
     gl = GroupLinks()
     hl = HostLinks()
@@ -472,8 +484,10 @@ if __name__ == '__main__':
     assert len(nc['_indirect_hosts']) == 3    
     us = g.lookup('united_states')
     assert len(us['_indirect_hosts']) == 4    
-    assert len(us['_direct_hosts']) == 0
-    
+
+    assert len(us['_direct_hosts']) == 1
+   
+ 
     h.edit('uno', dict(comment='editing uno'))
     dos = h.lookup('dos')
     uno = h.lookup('uno')
@@ -489,7 +503,26 @@ if __name__ == '__main__':
     assert 'south_carolina' not in us['_children']
 
     tres = h.lookup('tres')
-    assert 'south_carolina' not in tres['_groups']
+    assert 'south_carolina' not in tres['groups']
+
+    g.add('california', dict(parents=['united_states']))
+    ca = g.lookup('california')
+    us = g.lookup('united_states')
+    assert 'california' in us['_descendents']
+    assert 'california' in us['_children']
+    
+    ws = h.add('winston-salem', dict(groups=['north_carolina']))
+
+    ws = h.lookup('winston-salem')
+    assert 'north_carolina' in ws['groups']
+    nc = g.lookup('north_carolina')
+    assert 'winston-salem' in nc['_direct_hosts']
+    assert 'winston-salem' in nc['_indirect_hosts']
+    us = g.lookup('united_states')
+
+    # looks like set_groups is not fully recursive yet
+    assert 'winston-salem' in us['_indirect_hosts']
+    assert 'winston-salem' not in us['_direct_hosts']
 
 
     print 'ok'

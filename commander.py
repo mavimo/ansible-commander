@@ -61,10 +61,59 @@ def requires_auth(f):
 def hello_world():
     return 'This is Ansible Commander'
 
-@app.route('/api/groups')
+@app.route('/api/groups/', methods=['GET'])
 @requires_auth
-def groups():
+def list_groups():
     return 'success'
+
+@app.route('/api/groups/', methods=['POST'])
+@requires_auth
+def add_group():
+    return 'foo'
+
+@app.route('/api/groups/<name>/', methods=['GET'])
+@requires_auth
+def get_group(name):
+    return 'foo'
+
+@app.route('/api/groups/<name>/', methods=['PUT'])
+@requires_auth
+def edit_group(name):
+    return 'foo'
+
+@app.route('/api/groups/<name>/', methods=['DELETE'])
+@requires_auth
+def delete_group(name):
+    return 'foo'
+
+@app.route('/api/hosts/', methods=['GET'])
+@requires_auth
+def list_groups():
+    return 'foo'
+
+@app.route('/api/hosts/', methods=['POST'])
+@requires_auth
+def list_groups():
+    return 'foo'
+
+@app.route('/api/hosts/<name>', methods=['GET'])
+@requires_auth
+def list_groups():
+    return 'foo'
+
+@app.route('/api/hosts/<name>', methods=['PUT'])
+@requires_auth
+def list_groups():
+    return 'foo'
+
+@app.route('/api/hosts/<name>', methods=['DELETE'])
+@requires_auth
+def list_groups():
+    return 'foo'
+
+@app.route('/api/inventory/hosts/<name>', method=['GET'])
+def list_groups():
+    return 'foo'
 
 if __name__ == '__main__':
     app.run(debug=DEBUG)
