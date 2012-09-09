@@ -2,18 +2,14 @@ Things left to do for Ansible Commander first release
 =====================================================
 
 
-- editing the host's groups hash calls the right method
-  and you can set it on creation
-- editing the group's parents hash cells the right method
-  and you can set it on creation 
-
+STAGE1 REMAINING:
 - expose groups over REST
 - expose hosts over REST
-- expose editing subgroups over REST
-- expose editing host membership over REST
 - expose users over REST
 - test for methods at REST layer
 - write an ansible inventory (python) script that accesses the database
+
+STAGE2:
 - Foundation or Bootstrap skeleton of GUI app
 - Login dialog to get username/password
 - Javascript MVC widgets list users and groups
@@ -31,8 +27,8 @@ Things left to do for Ansible Commander first release
 - migration script to convert inventory of YAML users (who want to) to database
 - documentation page for ansible.github.com (ideally with 1 or 2 screenshots)
 
-Completed
-=========
+Completed Thus Far
+==================
 
 - README/LICENSE
 - flask hello world
@@ -43,6 +39,9 @@ Completed
 - full group/host data modelling
 - encrypt passwords
 - verify behavior when deleting groups in a chain, for hosts and groups, do _groups get cleared on hosts, etc
+- ability to edit parent and group variables directly and all the right things update
+- hrefs in all the objects
+- established basic routes
 
 Future releases (possible)
 ==========================
