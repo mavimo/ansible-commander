@@ -1,10 +1,10 @@
 Things left to do for Ansible Commander first release
 =====================================================
 
-- encrypt passwords
 - expose groups over REST
-- host class + tests
 - expose hosts over REST
+- expose editing subgroups over REST
+- expose editing host membership over REST
 - expose users over REST
 - write an ansible inventory (python) script that accesses the database
 - Foundation or Bootstrap skeleton of GUI app
@@ -31,6 +31,8 @@ Completed
 - python code to access datalayer
 - basic user class
 - basic auth layer wired in to user class
+- full group/host data modelling
+- encrypt passwords
 
 Future releases (possible)
 ==========================
