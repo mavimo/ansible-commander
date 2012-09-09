@@ -111,7 +111,7 @@ def list_groups():
 def list_groups():
     return 'foo'
 
-@app.route('/api/inventory/hosts/<name>', method=['GET'])
+@app.route('/api/inventory/hosts/<name>', methods=['GET'])
 def list_groups():
     return 'foo'
 
