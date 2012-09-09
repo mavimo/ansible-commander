@@ -3,6 +3,7 @@ Things left to do for Ansible Commander first release
 
 
 STAGE1 REMAINING:
+- comment uncommented functions
 - expose groups over REST
 - expose hosts over REST
 - expose users over REST
