@@ -137,7 +137,11 @@ class Hosts(acom_data.Base):
 
         hl = HostLinks()
         g  = Groups()
-        info = self.lookup(name)
+
+        try:
+            info = self.lookup(name)
+        except acom_data.DoesNotExist:
+            return None
 
         my_thing_id = info['id']
         existing_groups = self.get_groups(name)
@@ -154,7 +158,10 @@ class Hosts(acom_data.Base):
                 pass
             else:
                 link_name= "%s-%s" % (group_thing_id, my_thing_id)
-                hl.add(link_name, dict(host=name, group=group_name))
+                try:
+                    hl.add(link_name, dict(host=name, group=group_name))
+                except acom_data.AlreadyExists:
+                    pass
 
         for group_thing_id in existing_group_ids:
             if group_thing_id not in group_ids:
@@ -180,10 +187,12 @@ class Hosts(acom_data.Base):
         g = Groups()
         host_links = self.get_host_links(name)
         group_ids = [ p['_group_id'] for p in host_links ]
-        groups = [ g.get_by_id(id) for id in group_ids ]
+        groups = [ g.get_by_id(id, allow_missing=True) for id in group_ids ]
+        groups = [ gx for gx in groups if gx is not None ]
         return parents
 
     def hosts_for_group_name(self, group_name):
+        ''' find the hosts found in a given group '''
         g = Groups()
         info = g.lookup(group_name)
         gl = HostLinks()
@@ -191,6 +200,23 @@ class Hosts(acom_data.Base):
         host_ids = [ p['_host_id'] for p in host_links ]
         hosts = [ self.get_by_id(id) for id in host_ids ]
         return hosts
+
+    def delete(self, name):
+        ''' when deleting a host, remove any group references that point to it '''
+        g = Groups()
+        all_groups = g.list()
+        for gx in all_groups():
+            direct = gx['_direct_hosts']
+            indirect = gx['_indirect_hosts']
+            if gname in direct:
+                direct2 = [ h for h in direct if h != name ]
+                properties = dict(_direct_hosts=direct2)
+                g.edit(gname, properties, internal=True, hook=True)
+            if gname in indirect:
+                indirect2 = [ h for h in indirect if h != name ]
+                properties = dict(_indirect_hosts=indirect2)
+                g.edit(gname, properties, internal=True, hook=True)
+        super(Hosts, self).delete(name)
 
 class Groups(acom_data.Base):
 
@@ -230,7 +256,8 @@ class Groups(acom_data.Base):
     def get_parents(self, name):
         parent_links = self.get_parent_links(name)
         parent_ids = [ p['_parent_id'] for p in parent_links ]
-        parents = [ self.get_by_id(id) for id in parent_ids ]
+        parents = [ self.get_by_id(id, allow_missing=True) for id in parent_ids ]
+        parents = [ p for p in parents if p is not None ]
         return parents
 
     def get_ancestors(self, name):
@@ -258,7 +285,8 @@ class Groups(acom_data.Base):
     def get_children(self, name):
         child_links = self.get_child_links(name)
         child_ids = [ p['_child_id'] for p in child_links ]
-        children = [ self.get_by_id(id) for id in child_ids ]
+        children = [ self.get_by_id(id, allow_missing=True) for id in child_ids ]
+        children = [ x for x in children if x is not None ] 
         return children
 
     def set_parents(self, name, parent_names):
@@ -331,6 +359,34 @@ class Groups(acom_data.Base):
 
         self.edit(name, properties, internal=True, hook=True)
 
+    def delete(self, name):
+
+        h = Hosts()
+        matching_hosts = h.hosts_for_group_name(name)
+        info = self.lookup(name)
+        children = self.get_children(name)
+        parents  = self.get_parents(name)
+
+        direct_hosts = info['_direct_hosts']
+        indirect_hosts = info['_indirect_hosts']
+        
+        super(Groups, self).delete(name)
+            
+        for c in children:
+            self.recompute_relationships(c['name'])
+        for p in parents:
+            self.recompute_relationships(p['name'])
+        
+        for host in direct_hosts:
+            host_info = h.lookup(host) 
+            host_groups = host_info['_groups'] # ...
+            new_groups = [ hx for hx in host_groups if hx != name ]
+            h.set_groups(name, new_groups)
+    
+        for m in matching_hosts:
+            groups = m['_groups']
+            groups = [ g for g in groups if g != name ]
+            h.set_groups(m['name'], groups)       
 
 if __name__ == '__main__':
 
@@ -426,5 +482,14 @@ if __name__ == '__main__':
     assert uno_vars['when'] == 1789
     assert uno_vars['a'] == 2
     assert uno['comment'] == 'editing uno'
+
+    g.delete('south_carolina')
+
+    us = g.lookup('united_states')
+    assert 'south_carolina' not in us['_children']
+
+    tres = h.lookup('tres')
+    assert 'south_carolina' not in tres['_groups']
+
 
     print 'ok'

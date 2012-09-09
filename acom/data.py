@@ -228,7 +228,7 @@ class Base(object):
                     results[tid][key] = json.loads(value) 
         return results.values()
     
-    def get_by_id(self, id, internal=False):
+    def get_by_id(self, id, internal=False, allow_missing=False):
         cur = self.cursor()
         sth = """
              SELECT t.id, p.id, p.key, p.value
@@ -242,7 +242,10 @@ class Base(object):
         db_results = cur.fetchall()
         results = self._reformat(db_results, internal=internal)
         if len(results) == 0:
-            raise DoesNotExist()
+            if allow_missing:
+                return None
+            else:
+                raise DoesNotExist()
         if len(results) > 1:
             raise Ambigious()
         return results[0]

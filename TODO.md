@@ -6,6 +6,7 @@ Things left to do for Ansible Commander first release
 - expose editing subgroups over REST
 - expose editing host membership over REST
 - expose users over REST
+- test for methods at REST layer
 - write an ansible inventory (python) script that accesses the database
 - Foundation or Bootstrap skeleton of GUI app
 - Login dialog to get username/password
@@ -21,6 +22,8 @@ Things left to do for Ansible Commander first release
 - ansible callback plugin to save latest facts for each system
 - JS to view/browse inventory
 - modify setup playbook to install plugins
+- migration script to convert inventory of YAML users (who want to) to database
+- documentation page for ansible.github.com (ideally with 1 or 2 screenshots)
 
 Completed
 =========
@@ -33,6 +36,7 @@ Completed
 - basic auth layer wired in to user class
 - full group/host data modelling
 - encrypt passwords
+- verify behavior when deleting groups in a chain, for hosts and groups, do _groups get cleared on hosts, etc
 
 Future releases (possible)
 ==========================
