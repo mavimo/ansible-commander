@@ -1,5 +1,5 @@
-Things left to do for Ansible Commander first release
-=====================================================
+Things left to do for Ansible Commander 
+========================================
 
 
 STAGE1 REMAINING:
@@ -21,9 +21,13 @@ STAGE2:
 - JS to add groups to groups
 - JS to edit group variables
 - JS to view all variables set on a host
-- Logout button
-- ansible callback plugin to save latest facts for each system
 - JS to view/browse inventory
+- Logout button
+
+Bonus
+=====
+
+- ansible callback plugin to save latest facts for each system
 - modify setup playbook to install plugins
 - migration script to convert inventory of YAML users (who want to) to database
 - documentation page for ansible.github.com (ideally with 1 or 2 screenshots)
