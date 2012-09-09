@@ -276,7 +276,7 @@ class Base(object):
             return results
         else:
             if len(results) == 0:
-                raise DoesNotExist()
+                raise DoesNotExist("%s/%s=%s" % (self.TYPE,key,value))
             if len(results) > 1:
                 raise Ambigious()
             return results[0]

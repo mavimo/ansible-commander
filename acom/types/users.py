@@ -27,27 +27,27 @@ class Users(acom_data.Base):
         self.TYPE = 'user'
         self.FIELDS = dict(
             primary  = 'name',
-            required = [ 'password' ],
+            required = [ '_password' ],
             optional = dict(),
             protected = [
-                'created_date',
-                'modified_date',
-                'salt'
+                '_created_date',
+                '_modified_date',
+                '_salt'
             ],
-            hidden = [ 'password' ],
+            hidden = [ '_password' ],
             private = []
         )
         super(Users, self).__init__()
 
     def compute_derived_fields_on_add(self, name, properties):
         new_properties = {}
-        new_properties['created_date'] = time.time()
+        new_properties['_created_date'] = time.time()
         # TODO: crypt password and store salt also
         self.edit(name, new_properties, internal=True, hook=True)
 
     def compute_derived_fields_on_edit(self, name, properties):
         new_properties = {}
-        new_properties['modified_date'] = time.time()
+        new_properties['_modified_date'] = time.time()
         self.edit(name, new_properties, internal=True, hook=True)
 
     def login(self, name, password):
@@ -55,7 +55,7 @@ class Users(acom_data.Base):
             record = self.lookup(name, internal=True)
         except acom_data.DoesNotExist:
             return False
-        return record['password'] == password
+        return record['_password'] == password
 
 if __name__ == '__main__':
 
@@ -73,35 +73,35 @@ if __name__ == '__main__':
     except acom_data.InvalidInput:
         pass
  
-    u.add('timmy',dict(password='timmy1'))
+    u.add('timmy',dict(_password='timmy1'))
 
     assert u.login('timmy','timmy1')
     assert not u.login('timmy','timmy2')
 
     timmy = u.lookup('timmy')
-    assert 'password' not in timmy
-    time1 = timmy['created_date']
+    assert '_password' not in timmy
+    time1 = timmy['_created_date']
 
     all = u.list()
     assert len(all) == 1
     assert all[0]['name'] == 'timmy'
-    assert 'password' not in all[0]
+    assert '_password' not in all[0]
 
-    u.edit('timmy', dict(password='timmy2'))
+    u.edit('timmy', dict(_password='timmy2'))
 
     assert not u.login('timmy','timmy1')
     assert u.login('timmy','timmy2')
 
     timmy = u.lookup('timmy', internal=True)
-    assert timmy['password'] == 'timmy2'
-    time2 = timmy['created_date']
-    time3 = timmy['modified_date']
+    assert timmy['_password'] == 'timmy2'
+    time2 = timmy['_created_date']
+    time3 = timmy['_modified_date']
     assert time1 == time2
     assert time3 != time1
 
     u.delete('timmy')
     assert len(u.list()) == 0
     
-    u.add('timmy',dict(password='timmy1'))
+    u.add('timmy',dict(_password='timmy1'))
     print "ok"
 
