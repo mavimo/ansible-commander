@@ -32,7 +32,7 @@ def check_auth(username, password):
     u = Users()
     all = u.list()
     if len(all) == 0 and (username == DEFAULT_USER and password == DEFAULT_PASS):
-        u.add(DEFAULT_USER, dict(password=DEFAULT_PASS))
+        u.add(DEFAULT_USER, dict(_password=DEFAULT_PASS))
         return True
     return u.login(username, password)
 

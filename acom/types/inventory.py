@@ -122,11 +122,8 @@ class Hosts(acom_data.Base):
                 ancestors = g.get_ancestors(gname)
                 chain.extend(ancestors)
             chain.reverse()
-            print "---"
             for group_info in chain:
-                print "CHAIN INDEX=%s" %  group_info['name']
                 vars.update(group_info['vars'])
-                print "UPDATE WITH=%s" % group_info['vars']
             vars.update(info['vars'])
 
         else:

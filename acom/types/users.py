@@ -19,6 +19,12 @@
 
 import acom.data as acom_data
 import time
+import crypt
+import string
+import random
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
 
 class Users(acom_data.Base):
 
@@ -30,32 +36,47 @@ class Users(acom_data.Base):
             required = [ '_password' ],
             optional = dict(),
             protected = [
+                '_salt',
                 '_created_date',
                 '_modified_date',
-                '_salt'
             ],
-            hidden = [ '_password' ],
+            hidden = [ '_salt', '_password' ],
             private = []
         )
         super(Users, self).__init__()
 
     def compute_derived_fields_on_add(self, name, properties):
+        info = self.lookup(name, internal=True)
         new_properties = {}
         new_properties['_created_date'] = time.time()
         # TODO: crypt password and store salt also
+        salt = new_properties['_salt'] = id_generator(64)
+        passwd = info['_password']
+        crypted = crypt.crypt(passwd, salt)
+        new_properties['_password'] = crypted
         self.edit(name, new_properties, internal=True, hook=True)
 
     def compute_derived_fields_on_edit(self, name, properties):
         new_properties = {}
         new_properties['_modified_date'] = time.time()
+
+        if '_password' in properties:
+            salt = new_properties['_salt'] = id_generator(64)
+            passwd = properties['_password']
+            crypted = crypt.crypt(passwd, salt)
+            new_properties['_password'] = crypted
+
         self.edit(name, new_properties, internal=True, hook=True)
 
     def login(self, name, password):
+        # if($encryptedPsw eq crypt ($readPsw, $encryptedPsw)) {
+
         try:
             record = self.lookup(name, internal=True)
         except acom_data.DoesNotExist:
             return False
-        return record['_password'] == password
+        crypted = crypt.crypt(password, record['_password'])
+        return record['_password'] == crypted
 
 if __name__ == '__main__':
 
@@ -80,6 +101,7 @@ if __name__ == '__main__':
 
     timmy = u.lookup('timmy')
     assert '_password' not in timmy
+    assert '_salt' not in timmy
     time1 = timmy['_created_date']
 
     all = u.list()
@@ -88,12 +110,12 @@ if __name__ == '__main__':
     assert '_password' not in all[0]
 
     u.edit('timmy', dict(_password='timmy2'))
-
+   
     assert not u.login('timmy','timmy1')
     assert u.login('timmy','timmy2')
 
     timmy = u.lookup('timmy', internal=True)
-    assert timmy['_password'] == 'timmy2'
+    assert timmy['_password'] != 'timmy2'
     time2 = timmy['_created_date']
     time3 = timmy['_modified_date']
     assert time1 == time2

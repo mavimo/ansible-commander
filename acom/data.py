@@ -100,7 +100,7 @@ class Base(object):
             # all required fields are set
             for f in self.FIELDS['required']:
                 if f not in fields:
-                    raise InvalidInput("field %s if required" % f)
+                    raise InvalidInput("field %s is required" % f)
 
             # any optional fields get set to defaults if missing
             for f in self.FIELDS['optional']:
