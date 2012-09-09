@@ -115,6 +115,10 @@ class Base(object):
                 raise InvalidInput("invalid field %s" % f)
 
     def add(self, name, properties, hook=False):
+
+        if 'href' in properties:
+            properties.pop('href')
+
         primary = self.FIELDS['primary']
         properties[primary] = name
         self.check_required_fields(properties)
@@ -146,6 +150,9 @@ class Base(object):
         return match
 
     def edit(self, name, properties, internal=False, hook=False):
+
+        if 'href' in properties:
+            properties.pop('href')
 
         primary = self.FIELDS['primary']
         self.check_required_fields(properties, edit=True, internal=internal)
@@ -226,6 +233,8 @@ class Base(object):
             if internal or (key not in self.FIELDS['private'] and key not in self.FIELDS['hidden']):
                 if value is not None:
                     results[tid][key] = json.loads(value) 
+            if self.REST is not None and key == self.FIELDS['primary']:
+                results[tid]['href'] = self.REST % json.loads(value)
         return results.values()
     
     def get_by_id(self, id, internal=False, allow_missing=False):

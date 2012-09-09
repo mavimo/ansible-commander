@@ -30,6 +30,7 @@ class Users(acom_data.Base):
 
     def __init__(self):
 
+        self.REST = "/api/users/%s"
         self.TYPE = 'user'
         self.FIELDS = dict(
             primary  = 'name',

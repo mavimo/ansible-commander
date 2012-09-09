@@ -24,7 +24,8 @@ import time
 class HostLinks(acom_data.Base):
 
     def __init__(self):
-
+ 
+        self.REST = None
         self.TYPE = 'host_link'
         self.FIELDS = dict(
             primary  = 'name',
@@ -58,6 +59,7 @@ class GroupLinks(acom_data.Base):
 
     def __init__(self):
 
+        self.REST = None
         self.TYPE = 'group_link'
         self.FIELDS = dict(
             primary  = 'name',
@@ -89,6 +91,7 @@ class Hosts(acom_data.Base):
 
     def __init__(self):
 
+        self.REST = '/api/hosts/%s'
         self.TYPE = 'host'
         self.FIELDS = dict(
             primary  = 'name',
@@ -231,6 +234,7 @@ class Groups(acom_data.Base):
 
     def __init__(self):
 
+        self.REST = '/api/groups/%s'
         self.TYPE = 'group'
         self.FIELDS = dict(
             primary  = 'name',
@@ -514,6 +518,7 @@ if __name__ == '__main__':
     ws = h.add('winston-salem', dict(groups=['north_carolina']))
 
     ws = h.lookup('winston-salem')
+    assert 'href' in ws and ws['href'].startswith('/api/hosts')
     assert 'north_carolina' in ws['groups']
     nc = g.lookup('north_carolina')
     assert 'winston-salem' in nc['_direct_hosts']
@@ -523,6 +528,6 @@ if __name__ == '__main__':
     # looks like set_groups is not fully recursive yet
     assert 'winston-salem' in us['_indirect_hosts']
     assert 'winston-salem' not in us['_direct_hosts']
-
+    assert 'href' in us and us['href'].startswith('/api/groups')
 
     print 'ok'
