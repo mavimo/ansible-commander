@@ -20,6 +20,40 @@
 import acom.data as acom_data
 import time
 
+
+class HostLinks(acom_data.Base):
+
+    def __init__(self):
+
+        self.TYPE = 'host_link'
+        self.FIELDS = dict(
+            primary  = 'name',
+            required = [ 'host', 'group'],
+            optional = dict(),
+            protected = [ '_created_date', '_modified_date', '_host_id', '_group_id' ],
+            private = [],
+            hidden  = []
+        )
+        super(HostLinks, self).__init__()
+
+    def check_required_fields(self, fields, edit=False, internal=False):
+        super(HostLinks, self).check_required_fields(fields, edit=edit, internal=internal)
+        g = Groups()
+        h = Hosts()
+        try:
+            group = g.lookup(fields['group'])
+        except acom_data.DoesNotExist:
+            raise Exception("group not found: %s" % fields['group'])
+        try:
+            host  = h.lookup(fields['host'])
+        except acom_data.DoesNotExist:
+            raise Exception("host not found: %s" % fields['host'])
+
+        # force saving links as IDs in case we were originally given names
+        fields['_host_id']    = host['id']
+        fields['_group_id']   = group['id']
+
+
 class GroupLinks(acom_data.Base):
 
     def __init__(self):
@@ -29,12 +63,7 @@ class GroupLinks(acom_data.Base):
             primary  = 'name',
             required = [ 'parent', 'child'], 
             optional = dict(),
-            protected = [
-               '_created_date',
-               '_modified_date',
-               '_parent_id', 
-               '_child_id'
-            ],
+            protected = [ '_created_date', '_modified_date', '_parent_id', '_child_id' ],
             private = [],
             hidden  = []
         )
@@ -55,7 +84,116 @@ class GroupLinks(acom_data.Base):
         # force saving links as IDs in case we were originally given names
         fields['_parent_id']  = parent['id']
         fields['_child_id']   = child['id']
+
+class Hosts(acom_data.Base):
+
+    def __init__(self):
+
+        self.TYPE = 'host'
+        self.FIELDS = dict(
+            primary  = 'name',
+            required = [],
+            optional = dict(vars={}, description='', comment=''),
+            protected = [ '_created_date', '_modified_date', '_groups', '_blended_vars' ],
+            private = [],
+            hidden  = []
+        )
+        super(Hosts, self).__init__()
            
+    def compute_derived_fields_on_add(self, name, properties):
+        properties['_created_date'] = time.time()
+        self.edit(name, properties, internal=True, hook=True)
+        self.compute_blended_vars(name)
+
+    def compute_derived_fields_on_edit(self, name, properties):
+        properties['_modified_date'] = time.time()
+        self.edit(name, properties, internal=True, hook=True)
+        self.compute_blended_vars(name)
+
+    def compute_blended_vars(self, name):
+        g = Groups()
+        info = self.lookup(name)
+
+        vars = {}
+        if '_groups' in info:
+            chain = []
+            for gname in info['_groups']:
+                chain.append(g.lookup(gname))
+                ancestors = g.get_ancestors(gname)
+                chain.extend(ancestors)
+            chain.reverse()
+            print "---"
+            for group_info in chain:
+                print "CHAIN INDEX=%s" %  group_info['name']
+                vars.update(group_info['vars'])
+                print "UPDATE WITH=%s" % group_info['vars']
+            vars.update(info['vars'])
+
+        else:
+            vars = info['vars']        
+
+        self.edit(name, dict(_blended_vars=vars), internal=True, hook=True)
+
+    def set_groups(self, name, group_names):
+
+        assert type(group_names) == list
+
+        hl = HostLinks()
+        g  = Groups()
+        info = self.lookup(name)
+
+        my_thing_id = info['id']
+        existing_groups = self.get_groups(name)
+        existing_group_ids = [ x['id'] for x in existing_groups ]
+
+        group_ids =  []
+        for group_name in group_names:
+            group           = g.lookup(group_name)
+            group_thing_id  = group['id']
+            group_ids.append(group_thing_id)
+            group_name      = group['name']
+
+            if group_thing_id in existing_group_ids:
+                pass
+            else:
+                link_name= "%s-%s" % (group_thing_id, my_thing_id)
+                hl.add(link_name, dict(host=name, group=group_name))
+
+        for group_thing_id in existing_group_ids:
+            if group_thing_id not in group_ids:
+                link_name = "%s-%s" % (group_thing_id, my_thing_id)
+                ginfo = g.get_by_id(group_thing_id)
+                g.recompute_relationships(ginfo['name'])
+                gl.delete(link_name)
+
+        for gname in group_names:
+            g.recompute_relationships(gname)
+
+        self.edit(name, dict(_groups=group_names), internal=True, hook=True)
+        self.compute_blended_vars(name)
+        return self.get_groups(name)
+
+    def get_host_links(self, name):
+        info = self.lookup(name)
+        gl = HostLinks()
+        host_links = gl.find('_host_id', info['id'])
+        return host_links
+
+    def get_groups(self, name):
+        g = Groups()
+        host_links = self.get_host_links(name)
+        group_ids = [ p['_group_id'] for p in host_links ]
+        groups = [ g.get_by_id(id) for id in group_ids ]
+        return parents
+
+    def hosts_for_group_name(self, group_name):
+        g = Groups()
+        info = g.lookup(group_name)
+        gl = HostLinks()
+        host_links = gl.find('_group_id', info['id'])
+        host_ids = [ p['_host_id'] for p in host_links ]
+        hosts = [ self.get_by_id(id) for id in host_ids ]
+        return hosts
 
 class Groups(acom_data.Base):
 
@@ -65,14 +203,11 @@ class Groups(acom_data.Base):
         self.FIELDS = dict(
             primary  = 'name',
             required = [],
-            optional = dict(description='', comment=''),
-            protected = [
-                '_created_date', 
-                '_modified_date',
-                '_ancestors',
-                '_descendents',
-                '_parents',
-                '_children',
+            optional = dict(vars={}, description='', comment=''),
+            protected = [ 
+                '_created_date', '_modified_date', 
+                '_ancestors', '_descendents', '_parents', '_children', 
+                '_indirect_hosts', '_direct_hosts'
             ],
             private = [],
             hidden  = []
@@ -82,11 +217,12 @@ class Groups(acom_data.Base):
     def compute_derived_fields_on_add(self, name, properties):
         properties['_created_date'] = time.time()
         self.edit(name, properties, internal=True, hook=True)
+        self.recompute_relationships(name)
         
-
     def compute_derived_fields_on_edit(self, name, properties):
         properties['_modified_date'] = time.time()
         self.edit(name, properties, internal=True, hook=True)
+        self.recompute_relationships(name)
 
     def get_parent_links(self, name):
         info = self.lookup(name)
@@ -130,16 +266,20 @@ class Groups(acom_data.Base):
 
     def set_parents(self, name, parent_names):
 
+        assert type(parent_names) == list
+
         gl = GroupLinks()
         info = self.lookup(name)
 
         my_thing_id = info['id']
         existing_parents = self.get_parents(name)
         existing_parent_ids = [ x['id'] for x in existing_parents ]
- 
+
+        parent_ids = [] 
         for parent_name in parent_names:
             parent          = self.lookup(parent_name)
             parent_thing_id = parent['id']
+            parent_ids.append(parent_thing_id)
             parent_name     = parent['name']
 
             if parent_thing_id in existing_parent_ids:
@@ -174,12 +314,24 @@ class Groups(acom_data.Base):
         descendents = self.get_descendents(name)
         direct_parents = self.get_parents(name)
         direct_children = self.get_children(name)
+
         # recompute derived relationships
         properties = {}
-        properties['_ancestors']   = [ p['name'] for p in ancestors ]
-        properties['_descendents'] = [ p['name'] for p in descendents ]
+        properties['_ancestors']   = list(set([ p['name'] for p in ancestors ]))
+        properties['_descendents'] = list(set([ p['name'] for p in descendents ]))
         properties['_parents']     = [ p['name'] for p in direct_parents ]
         properties['_children']    = [ p['name'] for p in direct_children ] 
+        
+        h = Hosts()
+        all_hosts = []
+        for d in properties['_descendents']:
+            descendent_hosts = h.hosts_for_group_name(d)
+            all_hosts.extend(descendent_hosts)
+        direct_hosts = h.hosts_for_group_name(name)
+        all_hosts.extend(direct_hosts)
+        properties['_indirect_hosts'] = list(set([ x['name'] for x in all_hosts ]))
+        properties['_direct_hosts']   = list(set([ x['name'] for x in direct_hosts ]))
+
         self.edit(name, properties, internal=True, hook=True)
 
 
@@ -190,14 +342,23 @@ if __name__ == '__main__':
     #print 'adding united states'
     g = Groups()
     gl = GroupLinks()
+    hl = HostLinks()
+    h = Hosts()
     g.clear_test_data()
     gl.clear_test_data()
+    h.clear_test_data()
+    hl.clear_test_data()
 
-    g1 = g.add('united_states', dict())
+    h.add('uno', dict(vars={}, comment='asdf'))
+    h.add('dos', dict(vars={}, comment='jkl;'))
+    h.add('tres', dict(vars={}, comment='mnop'))
+    h.add('quatro', dict(vars={}, comment='qrst'))
+
+    g1 = g.add('united_states', dict(comment='of america', vars=dict(when=1776, a=2, b=3, c=[4,5,6])))
     assert g1['name'] == 'united_states'
 
     #print 'adding north carolina'
-    g2 = g.add('north_carolina', dict())
+    g2 = g.add('north_carolina', dict(vars=dict(when=1789, bonus='yes')))
     assert g2['name'] == 'north_carolina'
 
     #print 'adding south carolina'
@@ -229,7 +390,7 @@ if __name__ == '__main__':
     assert len(parents) == 1
 
     #print 'adding raleigh'
-    g4 = g.add('raleigh', dict())
+    g4 = g.add('raleigh', dict(vars=dict(when=1792, acorn=True)))
     
     #print 'raleigh is in north_carolina'
     g.set_parents('raleigh', ['north_carolina'])
@@ -244,5 +405,29 @@ if __name__ == '__main__':
 
     #print g.lookup('united_states')
     #print g.lookup('raleigh')
-    print "ok"
+    
+    
+    h.set_groups('uno', [ 'north_carolina', 'south_carolina' ])
+    h.set_groups('dos', [ 'raleigh' ])
+    h.set_groups('tres', [ 'south_carolina' ])
+    h.set_groups('quatro', ['united_states', 'north_carolina'])
 
+    # check redirect and indirect host counts
+    nc = g.lookup('north_carolina')
+    assert len(nc['_indirect_hosts']) == 3    
+    assert len(nc['_direct_hosts']) == 2 
+    assert len(nc['_indirect_hosts']) == 3    
+    us = g.lookup('united_states')
+    assert len(us['_indirect_hosts']) == 4    
+    assert len(us['_direct_hosts']) == 0
+    
+    h.edit('uno', dict(comment='editing uno'))
+    dos = h.lookup('dos')
+    uno = h.lookup('uno')
+    uno_vars = uno['_blended_vars']
+
+    assert uno_vars['when'] == 1789
+    assert uno_vars['a'] == 2
+    assert uno['comment'] == 'editing uno'
+
+    print 'ok'

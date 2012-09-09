@@ -288,7 +288,8 @@ class Base(object):
         cur = self.cursor()
         obj = self.find(self.FIELDS['primary'], value)    
         if len(obj) == 0:
-            pass
+            # delete on something that doesn't exist is fine
+            return
         elif len(obj) != 1:
             raise Ambigious()
         id = obj[0]['id']
