@@ -12,7 +12,7 @@ test:
 	@echo "ALTER SEQUENCE thing_id_seq RESTART;" | sudo -u postgres psql --dbname ansible_commander_test 1>/dev/null 2>&1
 	@echo "ALTER SEQUENCE properties_id_seq RESTART;" | sudo -u postgres psql --dbname ansible_commander_test 1>/dev/null 2>&1
 	@PYTHONPATH=. python ./acom/types/users.py
-	@PYTHONPATH=. python ./acom/types/groups.py
+	@PYTHONPATH=. python ./acom/types/inventory.py
 
 loc:
 	sloccount acom commander.py
