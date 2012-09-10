@@ -9,6 +9,8 @@ STAGE1 REMAINING:
 - expose users over REST
 - test for methods at REST layer
 - write an ansible inventory (python) script that accesses the database
+- make sure user can only edit their own password
+- text script using acom data API to create users
 
 STAGE2:
 - Foundation or Bootstrap skeleton of GUI app
@@ -57,6 +59,8 @@ Future releases (possible)
 - browse and edit playbook content (???)
 - trigger ad-hoc execution (???)
 - trigger playbook execution (???)
+- activity log
+- object history
 - ...
 
 
