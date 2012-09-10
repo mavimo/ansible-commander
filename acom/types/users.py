@@ -19,7 +19,7 @@
 
 import acom.data as acom_data
 import time
-import crypt
+#import crypt
 import string
 import random
 
@@ -50,34 +50,36 @@ class Users(acom_data.Base):
         info = self.lookup(name, internal=True)
         new_properties = {}
         new_properties['_created_date'] = time.time()
+
+        # disabled until correct
         # TODO: crypt password and store salt also
-        salt = new_properties['_salt'] = id_generator(64)
-        passwd = info['_password']
-        crypted = crypt.crypt(passwd, salt)
-        new_properties['_password'] = crypted
+        #salt = new_properties['_salt'] = id_generator(64)
+        #passwd = info['_password']
+        #crypted = crypt.crypt(passwd, salt)
+        #new_properties['_password'] = crypted
+
         self.edit(name, new_properties, internal=True, hook=True)
 
     def compute_derived_fields_on_edit(self, name, properties):
         new_properties = {}
         new_properties['_modified_date'] = time.time()
 
-        if '_password' in properties:
-            salt = new_properties['_salt'] = id_generator(64)
-            passwd = properties['_password']
-            crypted = crypt.crypt(passwd, salt)
-            new_properties['_password'] = crypted
+        #if '_password' in properties:
+        #    salt = new_properties['_salt'] = id_generator(64)
+        #    passwd = properties['_password']
+        #    crypted = crypt.crypt(passwd, salt)
+        #    new_properties['_password'] = crypted
 
         self.edit(name, new_properties, internal=True, hook=True)
 
     def login(self, name, password):
-        # if($encryptedPsw eq crypt ($readPsw, $encryptedPsw)) {
-
         try:
             record = self.lookup(name, internal=True)
         except acom_data.DoesNotExist:
             return False
-        crypted = crypt.crypt(password, record['_password'])
-        return record['_password'] == crypted
+        #crypted = crypt.crypt(password, record['_password'])
+        #return record['_password'] == crypted
+        return record['_password'] == password
 
 if __name__ == '__main__':
 

@@ -22,6 +22,7 @@ DEFAULT_USER='admin'
 DEFAULT_PASS='gateisdown'
 
 import flask
+import json
 import random
 from functools import wraps
 from acom import data
@@ -32,7 +33,7 @@ random.seed()
 
 def check_auth(username, password):
     u = Users()
-    all = u.list()
+    all = u.list(internal=True)
     if len(all) == 0 and (username == DEFAULT_USER and password == DEFAULT_PASS):
         u.add(DEFAULT_USER, dict(_password=DEFAULT_PASS))
         return True
@@ -51,7 +52,6 @@ def requires_auth(f):
         auth = flask.request.authorization
         if not auth: 
             return authenticate()
-
         elif not check_auth(auth.username, auth.password):
             return authenticate("Authentication Failed.")
         return f(*args, **kwargs)
@@ -60,6 +60,31 @@ def requires_auth(f):
 @app.route('/')
 def hello_world():
     return 'This is Ansible Commander'
+
+@app.route('/api/users/', methods=['GET'])
+@requires_auth
+def list_users():
+    return json.dumps(Users().list())
+
+@app.route('/api/users/', methods=['POST'])
+@requires_auth
+def add_user():
+    return 'success'
+
+@app.route('/api/users/<name>/', methods=['GET'])
+@requires_auth
+def get_user(name):
+    return 'success'
+
+@app.route('/api/users/<name>/', methods=['PUT'])
+@requires_auth
+def edit_user(name):
+    return 'success'
+
+@app.route('/api/users/<name>/', methods=['DELETE'])
+@requires_auth
+def delete_user(name):
+    return success
 
 @app.route('/api/groups/', methods=['GET'])
 @requires_auth
@@ -116,4 +141,5 @@ def list_groups():
     return 'foo'
 
 if __name__ == '__main__':
+    app.debug = DEBUG
     app.run(debug=DEBUG)

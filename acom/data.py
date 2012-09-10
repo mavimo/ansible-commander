@@ -316,11 +316,7 @@ class Base(object):
             raise Exception("only supported in TESTMODE")
         cur = self.cursor()
         sth = """
-            DELETE from thing where type=%s AND EXISTS (
-                SELECT thing_id from properties
-                   WHERE properties.thing_id = thing.id
-                   AND properties.key = 'TESTMODE'
-                ) 
+            DELETE from thing where type=%s
         """
         cur.execute(sth, [self.TYPE])
         conn.commit()
