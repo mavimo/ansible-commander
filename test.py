@@ -69,5 +69,8 @@ def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAUL
 def test_users():
 
     res = do('get', '/api/users/', code=200)
-    
-   
+    print res
+
+    res = do('get', '/api/users/', code=200)
+    print res    
+    raise Exception("stop") 

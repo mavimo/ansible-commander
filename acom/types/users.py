@@ -19,12 +19,18 @@
 
 import acom.data as acom_data
 import time
-#import crypt
+import hashlib
 import string
 import random
 
-def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+def id_generator(size=160, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
+
+def cryptify(password, salt):
+    m = hashlib.md5()
+    m.update(password)
+    m.update(salt)
+    return m.hexdigest()
 
 class Users(acom_data.Base):
 
@@ -53,10 +59,10 @@ class Users(acom_data.Base):
 
         # disabled until correct
         # TODO: crypt password and store salt also
-        #salt = new_properties['_salt'] = id_generator(64)
-        #passwd = info['_password']
-        #crypted = crypt.crypt(passwd, salt)
-        #new_properties['_password'] = crypted
+        salt = new_properties['_salt'] = id_generator()
+        passwd = info['_password']
+        crypted = cryptify(passwd, salt)
+        new_properties['_password'] = crypted
 
         self.edit(name, new_properties, internal=True, hook=True)
 
@@ -64,11 +70,12 @@ class Users(acom_data.Base):
         new_properties = {}
         new_properties['_modified_date'] = time.time()
 
-        #if '_password' in properties:
-        #    salt = new_properties['_salt'] = id_generator(64)
-        #    passwd = properties['_password']
-        #    crypted = crypt.crypt(passwd, salt)
-        #    new_properties['_password'] = crypted
+        data = self.lookup(name, internal=True)
+
+        if '_password' in properties:
+            passwd = properties['_password']
+            crypted = cryptify(passwd, data['_salt'])
+            new_properties['_password'] = crypted
 
         self.edit(name, new_properties, internal=True, hook=True)
 
@@ -77,9 +84,11 @@ class Users(acom_data.Base):
             record = self.lookup(name, internal=True)
         except acom_data.DoesNotExist:
             return False
-        #crypted = crypt.crypt(password, record['_password'])
-        #return record['_password'] == crypted
-        return record['_password'] == password
+
+        print record
+        salt = record['_salt']
+        crypted = cryptify(password, salt)
+        return record['_password'] == crypted
 
 if __name__ == '__main__':
 

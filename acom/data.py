@@ -91,6 +91,8 @@ class Base(object):
         if not internal: 
             for p in self.FIELDS['protected']:
                 if p in fields:
+                    if p == '_salt':
+                        raise Exception("popping: %s" % p)
                     fields.pop(p) 
 
         if not edit:

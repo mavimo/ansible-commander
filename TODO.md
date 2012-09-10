@@ -3,6 +3,7 @@ Things left to do for Ansible Commander
 
 
 STAGE1 REMAINING:
+- decorators for json_response
 - comment uncommented functions
 - expose groups over REST
 - expose hosts over REST
