@@ -116,13 +116,15 @@ class Base(object):
             if f not in self.FIELDS['required'] and f not in self.FIELDS['optional'] and f != self.FIELDS['primary']:
                 raise InvalidInput("invalid field %s" % f)
 
-    def add(self, name, properties, hook=False):
+    def add(self, properties, hook=False):
 
         if 'href' in properties:
             properties.pop('href')
 
         primary = self.FIELDS['primary']
-        properties[primary] = name
+        if not primary in properties:
+            raise InvalidInput("missing value for name field: %s" % primary)
+        name = properties[primary]
         self.check_required_fields(properties)
         try:
             match = self.lookup(properties[primary])

@@ -13,6 +13,7 @@ test:
 	@echo "ALTER SEQUENCE properties_id_seq RESTART;" | sudo -u postgres psql --dbname ansible_commander_test 1>/dev/null 2>&1
 	@PYTHONPATH=. python ./acom/types/users.py
 	@PYTHONPATH=. python ./acom/types/inventory.py
+	nosetests ./test.py
 
 loc:
 	sloccount acom commander.py

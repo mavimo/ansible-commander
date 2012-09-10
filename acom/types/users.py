@@ -85,7 +85,6 @@ class Users(acom_data.Base):
         except acom_data.DoesNotExist:
             return False
 
-        print record
         salt = record['_salt']
         crypted = cryptify(password, salt)
         return record['_password'] == crypted
@@ -101,12 +100,12 @@ if __name__ == '__main__':
 
     # error to add without a password!
     try:
-        u.add('timmy', dict())
+        u.add(dict(name='timmy'))
         assert False
     except acom_data.InvalidInput:
         pass
  
-    u.add('timmy',dict(_password='timmy1'))
+    u.add(dict(name='timmy',_password='timmy1'))
 
     assert u.login('timmy','timmy1')
     assert not u.login('timmy','timmy2')
@@ -136,6 +135,6 @@ if __name__ == '__main__':
     u.delete('timmy')
     assert len(u.list()) == 0
     
-    u.add('timmy',dict(_password='timmy1'))
+    u.add(dict(name='timmy',_password='timmy1'))
     print "ok"
 

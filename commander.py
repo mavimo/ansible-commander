@@ -22,6 +22,7 @@ DEFAULT_USER='admin'
 DEFAULT_PASS='gateisdown'
 
 import flask
+from flask import request
 import json
 import random
 from functools import wraps
@@ -31,11 +32,17 @@ from acom.types.users import Users
 app = flask.Flask(__name__)
 random.seed()
 
+def jdata():
+    try:
+        return json.loads(request.data)
+    except ValueError:
+        raise Exception("failed to parse JSON: %s" % request.data)
+
 def check_auth(username, password):
     u = Users()
     all = u.list(internal=True)
     if len(all) == 0 and (username == DEFAULT_USER and password == DEFAULT_PASS):
-        u.add(DEFAULT_USER, dict(_password=DEFAULT_PASS))
+        u.add(dict(name=DEFAULT_USER, _password=DEFAULT_PASS))
         return True
     return u.login(username, password)
 
@@ -57,86 +64,110 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+def returns_json(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        result = f(*args, **kwargs)
+        return json.dumps(result)
+    return decorated
+
 @app.route('/')
 def hello_world():
     return 'This is Ansible Commander'
 
 @app.route('/api/users/', methods=['GET'])
 @requires_auth
+@returns_json
 def list_users():
-    return json.dumps(Users().list())
+    return Users().list()
 
 @app.route('/api/users/', methods=['POST'])
 @requires_auth
+@returns_json
 def add_user():
-    return 'success'
+    return Users().add(jdata())
 
 @app.route('/api/users/<name>/', methods=['GET'])
 @requires_auth
+@returns_json
 def get_user(name):
     return 'success'
 
 @app.route('/api/users/<name>/', methods=['PUT'])
 @requires_auth
+@returns_json
 def edit_user(name):
     return 'success'
 
 @app.route('/api/users/<name>/', methods=['DELETE'])
 @requires_auth
+@returns_json
 def delete_user(name):
     return success
 
 @app.route('/api/groups/', methods=['GET'])
 @requires_auth
+@returns_json
 def list_groups():
     return 'success'
 
 @app.route('/api/groups/', methods=['POST'])
 @requires_auth
+@returns_json
 def add_group():
     return 'foo'
 
 @app.route('/api/groups/<name>/', methods=['GET'])
 @requires_auth
+@returns_json
 def get_group(name):
     return 'foo'
 
 @app.route('/api/groups/<name>/', methods=['PUT'])
 @requires_auth
+@returns_json
 def edit_group(name):
     return 'foo'
 
 @app.route('/api/groups/<name>/', methods=['DELETE'])
 @requires_auth
+@returns_json
 def delete_group(name):
     return 'foo'
 
 @app.route('/api/hosts/', methods=['GET'])
 @requires_auth
+@returns_json
 def list_groups():
     return 'foo'
 
 @app.route('/api/hosts/', methods=['POST'])
 @requires_auth
+@returns_json
 def list_groups():
     return 'foo'
 
 @app.route('/api/hosts/<name>', methods=['GET'])
 @requires_auth
+@returns_json
 def list_groups():
     return 'foo'
 
 @app.route('/api/hosts/<name>', methods=['PUT'])
 @requires_auth
+@returns_json
 def list_groups():
     return 'foo'
 
 @app.route('/api/hosts/<name>', methods=['DELETE'])
 @requires_auth
+@returns_json
 def list_groups():
     return 'foo'
 
 @app.route('/api/inventory/hosts/<name>', methods=['GET'])
+@requires_auth
+@returns_json
 def list_groups():
     return 'foo'
 

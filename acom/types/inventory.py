@@ -168,7 +168,7 @@ class Hosts(acom_data.Base):
             else:
                 link_name= "%s-%s" % (group_thing_id, my_thing_id)
                 try:
-                    hl.add(link_name, dict(host=name, group=group_name))
+                    hl.add(dict(name=link_name, host=name, group=group_name))
                 except acom_data.AlreadyExists:
                     pass
 
@@ -328,7 +328,7 @@ class Groups(acom_data.Base):
                 pass
             else: 
                 link_name= "%s-%s" % (parent_thing_id, my_thing_id)
-                gl.add(link_name, dict(child=name, parent=parent_name))
+                gl.add(dict(name=link_name, child=name, parent=parent_name))
 
         # delete parents that we have disowned! (Found A Better Family?)
         for parent_thing_id in existing_parent_ids:
@@ -418,20 +418,20 @@ if __name__ == '__main__':
     h.clear_test_data()
     hl.clear_test_data()
 
-    h.add('uno', dict(vars={}, comment='asdf'))
-    h.add('dos', dict(vars={}, comment='jkl;'))
-    h.add('tres', dict(vars={}, comment='mnop'))
-    h.add('quatro', dict(vars={}, comment='qrst'))
+    h.add(dict(name='uno', vars={}, comment='asdf'))
+    h.add(dict(name='dos', vars={}, comment='jkl;'))
+    h.add(dict(name='tres', vars={}, comment='mnop'))
+    h.add(dict(name='quatro', vars={}, comment='qrst'))
 
-    g1 = g.add('united_states', dict(comment='of america', vars=dict(when=1776, a=2, b=3, c=[4,5,6])))
+    g1 = g.add(dict(name='united_states', comment='of america', vars=dict(when=1776, a=2, b=3, c=[4,5,6])))
     assert g1['name'] == 'united_states'
 
     #print 'adding north carolina'
-    g2 = g.add('north_carolina', dict(vars=dict(when=1789, bonus='yes')))
+    g2 = g.add(dict(name='north_carolina', vars=dict(when=1789, bonus='yes')))
     assert g2['name'] == 'north_carolina'
 
     #print 'adding south carolina'
-    g3 = g.add('south_carolina', dict())
+    g3 = g.add(dict(name='south_carolina'))
     assert g3['name'] == 'south_carolina'
  
     #print 'north_carolina is in the united_states'
@@ -459,7 +459,7 @@ if __name__ == '__main__':
     assert len(parents) == 1
 
     #print 'adding raleigh'
-    g4 = g.add('raleigh', dict(vars=dict(when=1792, acorn=True)))
+    g4 = g.add(dict(name='raleigh', vars=dict(when=1792, acorn=True)))
     
     #print 'raleigh is in north_carolina'
     g.set_parents('raleigh', ['north_carolina'])
@@ -509,13 +509,13 @@ if __name__ == '__main__':
     tres = h.lookup('tres')
     assert 'south_carolina' not in tres['groups']
 
-    g.add('california', dict(parents=['united_states']))
+    g.add(dict(name='california', parents=['united_states']))
     ca = g.lookup('california')
     us = g.lookup('united_states')
     assert 'california' in us['_descendents']
     assert 'california' in us['_children']
     
-    ws = h.add('winston-salem', dict(groups=['north_carolina']))
+    ws = h.add(dict(name='winston-salem', groups=['north_carolina']))
 
     ws = h.lookup('winston-salem')
     assert 'href' in ws and ws['href'].startswith('/api/hosts')

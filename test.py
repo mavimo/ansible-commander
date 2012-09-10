@@ -47,12 +47,12 @@ def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAUL
 
     if data:
         input = json.dumps(data)
-        print "input=%" % input
+        print "input=%s" % input
     else:
         input = None
 
     headers = dict(Authorization="Basic %s" % (base64.b64encode("%s:%s" % (username, password))))
-    resp = method(url, data=data, headers=headers)
+    resp = method(url, data=input, headers=headers)
 
     print "code=%s" % resp.status_code
 
@@ -68,9 +68,15 @@ def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAUL
 
 def test_users():
 
-    res = do('get', '/api/users/', code=200)
-    print res
+    res = do('get',  '/api/users/', code=200)
+    assert len(res) == 1
+    assert res[0]['name'] == 'admin'   
 
-    res = do('get', '/api/users/', code=200)
-    print res    
-    raise Exception("stop") 
+    res = do('post', '/api/users/', code=200, data=dict(name='spork',_password='foon'))
+    print res
+    assert res['name'] == 'spork'
+
+    res = do('get',  '/api/users/', code=200)
+    print res
+    assert len(res) == 2
+
