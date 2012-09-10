@@ -1,9 +1,8 @@
 Things left to do for Ansible Commander 
 ========================================
 
-
 STAGE1 REMAINING:
-- decorators for json_response
+
 - comment uncommented functions
 - expose groups over REST
 - expose hosts over REST
@@ -48,6 +47,7 @@ Completed Thus Far
 - ability to edit parent and group variables directly and all the right things update
 - hrefs in all the objects
 - established basic routes
+- expose users over rest
 
 Future releases (possible)
 ==========================

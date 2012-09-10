@@ -26,7 +26,7 @@ from flask import request
 import json
 import random
 from functools import wraps
-from acom import data
+from acom import data as acom_data
 from acom.types.users import Users
 
 app = flask.Flask(__name__)
@@ -67,8 +67,11 @@ def requires_auth(f):
 def returns_json(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        result = f(*args, **kwargs)
-        return json.dumps(result)
+        try:
+            result = f(*args, **kwargs)
+            return json.dumps(result)
+        except acom_data.DoesNotExist:
+            flask.abort(404)
     return decorated
 
 @app.route('/')
@@ -91,19 +94,19 @@ def add_user():
 @requires_auth
 @returns_json
 def get_user(name):
-    return 'success'
+    return Users().lookup(name)
 
 @app.route('/api/users/<name>/', methods=['PUT'])
 @requires_auth
 @returns_json
 def edit_user(name):
-    return 'success'
+    return Users().edit(name, jdata())
 
 @app.route('/api/users/<name>/', methods=['DELETE'])
 @requires_auth
 @returns_json
 def delete_user(name):
-    return success
+    return Users().delete(name)
 
 @app.route('/api/groups/', methods=['GET'])
 @requires_auth

@@ -41,6 +41,11 @@ u.clear_test_data()
 app.TEST_MODE=True
 
 def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAULT_PASS):
+
+    if not url.endswith('/'):
+        url = url + '/'
+
+
     print "url=%s" % url
     print "method=%s" % method
     method=getattr(client, method)
@@ -59,7 +64,8 @@ def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAUL
     data = '\n'.join([ x for x in resp.response])
 
     print "data=%s" % data
-    data = json.loads(data)
+    if resp.status_code >= 200 and resp.status_code < 300:
+        data = json.loads(data)
 
     if code is not None:
         assert resp.status_code == code
@@ -67,16 +73,31 @@ def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAUL
     return data
 
 def test_users():
+   
+    # test with invalid auth
+    res = do('get',  '/api/users/', username='wrong', password='wrong', code=401)
 
-    res = do('get',  '/api/users/', code=200)
+    # list users
+    res = do('get',  '/api/users/')
     assert len(res) == 1
     assert res[0]['name'] == 'admin'   
 
-    res = do('post', '/api/users/', code=200, data=dict(name='spork',_password='foon'))
-    print res
+    # add a user
+    res = do('post', '/api/users/', data=dict(name='spork',_password='foon'))
     assert res['name'] == 'spork'
-
-    res = do('get',  '/api/users/', code=200)
-    print res
+    res = do('get',  '/api/users/')
     assert len(res) == 2
+
+    # edit a user
+    res = do('put', '/api/users/spork/', dict(name='knork'))
+    res = do('get',  '/api/users/spork/', code=404)
+    res = do('get',  '/api/users/knork/')
+    assert res['name'] == 'knork'
+    res = do('get', '/api/users')
+    assert len(res) == 2
+
+    # delete a user
+    res = do('delete', '/api/users/knork/')
+    res = do('get', '/api/users/')
+    assert len(res) == 1
 
