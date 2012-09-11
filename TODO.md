@@ -12,6 +12,7 @@ STAGE1 REMAINING:
 - make sure user can only edit their own password unless named admin
 - only user named 'admin' can rename other users or delete users
 - text script using acom data API to create users
+- 'admin' account is not deleteable
 
 STAGE2:
 - Foundation or Bootstrap skeleton of GUI app

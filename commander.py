@@ -28,6 +28,9 @@ import random
 from functools import wraps
 from acom import data as acom_data
 from acom.types.users import Users
+from acom.types.inventory import Hosts, Groups
+
+version = '0.1'
 
 app = flask.Flask(__name__)
 random.seed()
@@ -74,9 +77,17 @@ def returns_json(f):
             flask.abort(404)
     return decorated
 
-@app.route('/')
+@app.route('/api/')
+@returns_json
 def hello_world():
-    return 'This is Ansible Commander'
+    return dict(
+        rest_resources = dict(
+            users  = dict(href='/api/users/', fields=Users.FIELDS),
+            hosts  = dict(href='/api/hosts/', fields=Hosts.FIELDS),
+            groups = dict(href='/api/groups/', fields=Groups.FIELDS),
+        ),
+        version=VERSION,
+    )
 
 @app.route('/api/users/', methods=['GET'])
 @requires_auth
@@ -112,67 +123,75 @@ def delete_user(name):
 @requires_auth
 @returns_json
 def list_groups():
-    return 'success'
+    return Groups().list()
 
 @app.route('/api/groups/', methods=['POST'])
 @requires_auth
 @returns_json
 def add_group():
-    return 'foo'
+    return Groups().add(jdata())
 
 @app.route('/api/groups/<name>/', methods=['GET'])
 @requires_auth
 @returns_json
 def get_group(name):
-    return 'foo'
+    return Groups().lookup(name)
 
 @app.route('/api/groups/<name>/', methods=['PUT'])
 @requires_auth
 @returns_json
 def edit_group(name):
-    return 'foo'
+    return Groups().edit(name, jdata())
 
 @app.route('/api/groups/<name>/', methods=['DELETE'])
 @requires_auth
 @returns_json
 def delete_group(name):
-    return 'foo'
+    return Groups().delete(name)
 
 @app.route('/api/hosts/', methods=['GET'])
 @requires_auth
 @returns_json
-def list_groups():
-    return 'foo'
+def list_hosts():
+    return Hosts().list()
 
 @app.route('/api/hosts/', methods=['POST'])
 @requires_auth
 @returns_json
-def list_groups():
-    return 'foo'
+def add_host():
+    return Hosts().add(jdata())
 
 @app.route('/api/hosts/<name>', methods=['GET'])
 @requires_auth
 @returns_json
-def list_groups():
-    return 'foo'
+def get_host(name):
+    return Hosts().lookup(name)
 
 @app.route('/api/hosts/<name>', methods=['PUT'])
 @requires_auth
 @returns_json
-def list_groups():
-    return 'foo'
+def edit_host(name):
+    return Hosts().edit(name, jdata())
 
 @app.route('/api/hosts/<name>', methods=['DELETE'])
 @requires_auth
 @returns_json
-def list_groups():
-    return 'foo'
+def delete_host(name):
+    return Hosts().delete(name)
 
 @app.route('/api/inventory/hosts/<name>', methods=['GET'])
-@requires_auth
 @returns_json
-def list_groups():
-    return 'foo'
+def inventory_host_info(name):
+    return Hosts().lookup(name)['_blended_vars']
+
+@app.route('/api/inventory/index/', methods=['GET'])
+@returns_json
+def inventory_index():
+    groups = Groups().list()
+    results = {}
+    for g in groups:
+        results[g['name']] = g['_indirect_hosts']
+    return results
 
 if __name__ == '__main__':
     app.debug = DEBUG

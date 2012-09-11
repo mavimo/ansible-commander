@@ -72,6 +72,25 @@ def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAUL
 
     return data
 
+def test_index():
+
+    res = do('get', '/api/', code=200)
+    assert 'rest_resources' in res
+    assert 'version' in res
+
+def test_inventory():
+
+    # FIXME: add a host and a group and see that it works
+
+    res = do('get', '/api/inventory/index/', code=200)
+
+    # FIXME: add tests
+
+    res = do('get', '/api/inventory/hosts/alpha', code=200)
+ 
+    # FIXME: add tests
+
+
 def test_users():
    
     # test with invalid auth
