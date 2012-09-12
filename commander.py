@@ -124,7 +124,7 @@ def groups_service():
 @app.route('/api/groups/<name>', methods=['GET','PUT','DELETE'])
 @requires_auth
 @returns_json
-def get_group(name):
+def group_service(name):
     if request.method == 'GET':
         return Groups().lookup(name)
     elif request.method == 'PUT':
@@ -135,7 +135,7 @@ def get_group(name):
 @app.route('/api/hosts/', methods=['GET','POST'])
 @requires_auth
 @returns_json
-def list_hosts():
+def hosts_service():
     if request.method == 'GET':
         return Hosts().list()
     elif request.method == 'POST':
@@ -144,7 +144,7 @@ def list_hosts():
 @app.route('/api/hosts/<name>', methods=['GET','PUT','DELETE'])
 @requires_auth
 @returns_json
-def get_host(name):
+def host_service(name):
     if request.method == 'GET':
         return Hosts().lookup(name)
     elif request.method == 'PUT':
