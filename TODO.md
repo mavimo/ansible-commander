@@ -10,9 +10,11 @@ STAGE1 REMAINING:
 - test for methods at REST layer
 - write an ansible inventory (python) script that accesses the database
 - make sure user can only edit their own password unless named admin
-- only user named 'admin' can rename other users or delete users
-- text script using acom data API to create users
+- only user named 'admin' can add, rename other users, or delete users
 - 'admin' account is not deleteable
+- when adding a host and the host is not in any groups, create 'ungrouped' as a group if it does not exist
+  and it there.  Similarly, when clearing host groups to zero, add to 'ungrouped'.  Requirement of inventory
+  script.  When ungrouped groups to 0 hosts, delete 'ungrouped'
 
 STAGE2:
 - Foundation or Bootstrap skeleton of GUI app

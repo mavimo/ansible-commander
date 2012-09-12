@@ -25,6 +25,7 @@ DEFAULT_PASS='gateisdown'
 import commander
 import acom.data as acom_data
 import acom.types.users as users
+import acom.types.inventory as inventory
 import json
 import base64
 
@@ -37,38 +38,39 @@ client = app.test_client()
 
 u = users.Users()
 u.clear_test_data()
+h = inventory.Hosts()
+g = inventory.Groups()
+hl = inventory.HostLinks()
+gl = inventory.GroupLinks()
+h.clear_test_data()
+g.clear_test_data()
+hl.clear_test_data()
+gl.clear_test_data()
 
 app.TEST_MODE=True
 
-def do(method, url, data=None, code=None, username=DEFAULT_USER, password=DEFAULT_PASS):
+def do(method, url, data=None, code=200, username=DEFAULT_USER, password=DEFAULT_PASS):
 
-    if not url.endswith('/'):
-        url = url + '/'
-
-
-    print "url=%s" % url
-    print "method=%s" % method
     method=getattr(client, method)
 
     if data:
         input = json.dumps(data)
-        print "input=%s" % input
     else:
         input = None
 
     headers = dict(Authorization="Basic %s" % (base64.b64encode("%s:%s" % (username, password))))
     resp = method(url, data=input, headers=headers)
 
-    print "code=%s" % resp.status_code
-
     data = '\n'.join([ x for x in resp.response])
 
-    print "data=%s" % data
     if resp.status_code >= 200 and resp.status_code < 300:
         data = json.loads(data)
 
     if code is not None:
-        assert resp.status_code == code
+        if resp.status_code != code:
+            print "url: %s" % url
+            print "got: %s, expected: %s" % (resp.status_code, code)
+            assert resp.status_code == code
 
     return data
 
@@ -80,15 +82,84 @@ def test_index():
 
 def test_inventory():
 
-    # FIXME: add a host and a group and see that it works
+    # show hosts is empty
+    res = do('get', '/api/hosts/')
+    assert len(res) == 0
+    
+    # show groups is empty
+    res = do('get', '/api/groups/')
+    assert len(res) == 0
 
-    res = do('get', '/api/inventory/index/', code=200)
+    # loose hosts
+    res = do('post', '/api/hosts/', dict(name='127.0.0.1', vars=dict(c=1000)))
+    assert res['name'] == '127.0.0.1'
+    res = do('post', '/api/hosts/', dict(name='127.0.0.2', vars=dict(c=1001)))
+    res = do('post', '/api/hosts/', dict(name='127.0.0.3', vars=dict(c=1002)))
+    res = do('get', '/api/hosts/')
+    assert len(res) == 3
 
-    # FIXME: add tests
+    # add some groups
+    res = do('post', '/api/groups/', dict(name='alpha', vars=dict(a=1, b=2, c=3)))
+    assert res['name'] == 'alpha'
+    res = do('post', '/api/groups/', dict(name='beta', vars=dict(a=4, b=5, c=6)))
+    res = do('post', '/api/groups/', dict(name='gamma', vars=dict(a=7, b=8, c=9)))
+    res = do('get', '/api/groups/')
+    assert len(res) == 3
 
-    res = do('get', '/api/inventory/hosts/alpha', code=200)
- 
-    # FIXME: add tests
+    # edit a host
+    res = do('put', '/api/hosts/127.0.0.1', dict(vars=dict(d=9999)))
+    res = do('get', '/api/hosts/127.0.0.1')
+    assert res['name'] == '127.0.0.1'
+    res = do('get', '/api/hosts/')
+
+    # add a host to a group
+    res = do('put', '/api/hosts/127.0.0.1', dict(groups=['alpha','beta'], vars=dict(d=99999)))
+    res = do('get', '/api/groups/alpha')
+    assert '127.0.0.1' in res['_direct_hosts']
+
+    # rename a group and add a group to a subgroup
+    res = do('put', '/api/groups/alpha', dict(parents=['gamma']))
+    res = do('get', '/api/hosts/127.0.0.1')
+    assert res['_blended_vars']['d'] == 99999
+    assert res['_blended_vars']['c'] == 3
+    # FYI -- host isn't directly in gamma, and doesn't record this fact, though the group knows this
+    assert 'alpha' in res['groups'] 
+    assert 'beta' in res['groups'] 
+    res = do('get', '/api/groups/alpha')
+    assert '127.0.0.1' in res['_direct_hosts']
+    assert '127.0.0.1' in res['_indirect_hosts']
+    res = do('get', '/api/groups/gamma')
+    assert '127.0.0.1' not in res['_direct_hosts']
+    assert '127.0.0.1' in res['_indirect_hosts']
+
+    # delete a group and make sure the host is edited and does not show it anymore
+    res = do('delete', '/api/groups/beta')
+    res = do('get', '/api/groups/beta', code=404)
+    res = do('get', '/api/hosts/127.0.0.1')
+    assert 'beta' not in res['groups']
+
+    res = do('get', '/api/inventory/index')
+    assert 'alpha' in res
+    assert 'gamma' in res
+    assert type(res['alpha']) == list
+    assert res['alpha'][0] == '127.0.0.1' 
+    
+    res = do('get', '/api/inventory/hosts/127.0.0.1', code=200)
+    assert type(res) == dict
+    assert res['d'] == 99999
+    assert res['c'] == 3
+    
+    # add a second host and delete the first, does the group look right?
+    res = do('post', '/api/hosts/', dict(name='foosball.example.com', groups=['alpha', 'gamma']))
+    res = do('delete', '/api/hosts/127.0.0.1')
+    res = do('get', '/api/groups/alpha')
+
+    assert 'foosball.example.com' in res['_indirect_hosts']
+    assert 'foosball.example.com' in res['_direct_hosts']
+    assert len(res['_indirect_hosts']) == 1
+    assert len(res['_direct_hosts']) == 1
+    assert len(res['_ancestors']) == 1
+    assert 'gamma' in res['_ancestors']
 
 
 def test_users():
@@ -106,17 +177,18 @@ def test_users():
     assert res['name'] == 'spork'
     res = do('get',  '/api/users/')
     assert len(res) == 2
+    res = do('get',  '/api/users/spork', code=200)
+    assert res['name'] == 'spork'
 
     # edit a user
-    res = do('put', '/api/users/spork/', dict(name='knork'))
-    res = do('get',  '/api/users/spork/', code=404)
-    res = do('get',  '/api/users/knork/')
-    assert res['name'] == 'knork'
-    res = do('get', '/api/users')
+    res = do('put', '/api/users/spork', dict(comment='narf'))
+    res = do('get',  '/api/users/spork', code=200)
+    assert res['comment'] == 'narf'
+    res = do('get', '/api/users/')
     assert len(res) == 2
 
     # delete a user
-    res = do('delete', '/api/users/knork/')
+    res = do('delete', '/api/users/spork')
     res = do('get', '/api/users/')
     assert len(res) == 1
 

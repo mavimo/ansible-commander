@@ -41,7 +41,7 @@ class Users(acom_data.Base):
         self.FIELDS = dict(
             primary  = 'name',
             required = [ '_password' ],
-            optional = dict(),
+            optional = dict(comment=''),
             protected = [
                 '_salt',
                 '_created_date',

@@ -105,14 +105,19 @@ class Hosts(acom_data.Base):
            
     def compute_derived_fields_on_add(self, name, properties):
         properties['_created_date'] = time.time()
+
+
+
         if 'groups' in properties:
             self.set_groups(name, properties['groups'])
             properties.pop('groups')
+
         self.edit(name, properties, internal=True, hook=True)
         self.compute_blended_vars(name)
 
     def compute_derived_fields_on_edit(self, name, properties):
         properties['_modified_date'] = time.time()
+
         if 'groups' in properties:
             self.set_groups(name, properties['groups'])
             properties.pop('groups')
@@ -215,19 +220,21 @@ class Hosts(acom_data.Base):
 
     def delete(self, name):
         ''' when deleting a host, remove any group references that point to it '''
+        info = self.lookup(name)
         g = Groups()
         all_groups = g.list()
-        for gx in all_groups():
+        for gx in all_groups:
             direct = gx['_direct_hosts']
             indirect = gx['_indirect_hosts']
-            if gname in direct:
-                direct2 = [ h for h in direct if h != name ]
-                properties = dict(_direct_hosts=direct2)
-                g.edit(gname, properties, internal=True, hook=True)
-            if gname in indirect:
-                indirect2 = [ h for h in indirect if h != name ]
-                properties = dict(_indirect_hosts=indirect2)
-                g.edit(gname, properties, internal=True, hook=True)
+            direct2 = [ h for h in direct if h != name ]
+            properties = dict(_direct_hosts=direct2)
+            g.edit(gx['name'], properties, internal=True, hook=True)
+            indirect2 = [ h for h in indirect if h != name ]
+            properties = dict(_indirect_hosts=indirect2)
+            g.edit(gx['name'], properties, internal=True, hook=True)
+        hlinks = HostLinks().find('_host_id', info['id'])
+        for h in hlinks:
+            HostLinks().delete(h['name'])
         super(Hosts, self).delete(name)
 
 class Groups(acom_data.Base):
@@ -258,7 +265,9 @@ class Groups(acom_data.Base):
         self.recompute_relationships(name)
         
     def compute_derived_fields_on_edit(self, name, properties):
+
         properties['_modified_date'] = time.time()
+
         self.edit(name, properties, internal=True, hook=True)
         if 'parents' in properties:
             self.set_parents(name, properties['parents'])

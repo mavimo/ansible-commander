@@ -17,9 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
+VERSION = '0.1'
+
 DEBUG=True
 DEFAULT_USER='admin'
 DEFAULT_PASS='gateisdown'
+
 
 import flask
 from flask import request
@@ -30,7 +33,6 @@ from acom import data as acom_data
 from acom.types.users import Users
 from acom.types.inventory import Hosts, Groups
 
-version = '0.1'
 
 app = flask.Flask(__name__)
 random.seed()
@@ -73,118 +75,89 @@ def returns_json(f):
         try:
             result = f(*args, **kwargs)
             return json.dumps(result)
-        except acom_data.DoesNotExist:
+        except acom_data.DoesNotExist, e:
             flask.abort(404)
     return decorated
 
-@app.route('/api/')
+@app.route('/api/', methods=['GET'])
 @returns_json
 def hello_world():
     return dict(
         rest_resources = dict(
-            users  = dict(href='/api/users/', fields=Users.FIELDS),
-            hosts  = dict(href='/api/hosts/', fields=Hosts.FIELDS),
-            groups = dict(href='/api/groups/', fields=Groups.FIELDS),
+            users  = dict(href='/api/users/', fields=Users().FIELDS),
+            hosts  = dict(href='/api/hosts/', fields=Hosts().FIELDS),
+            groups = dict(href='/api/groups/', fields=Groups().FIELDS),
         ),
         version=VERSION,
     )
 
-@app.route('/api/users/', methods=['GET'])
+
+@app.route('/api/users/<name>', methods=['GET','PUT','DELETE'])
 @requires_auth
 @returns_json
-def list_users():
-    return Users().list()
+def user_service(name):
+    if request.method == 'GET':
+        return Users().lookup(name)
+    elif request.method == 'PUT':
+        return Users().edit(name, jdata())
+    elif request.method == 'DELETE':
+        return Users().delete(name)
 
-@app.route('/api/users/', methods=['POST'])
+@app.route('/api/users/', methods=['GET', 'POST'])
 @requires_auth
 @returns_json
-def add_user():
-    return Users().add(jdata())
+def users_service():
+    if request.method == 'GET':
+        return Users().list()
+    elif request.method == 'POST':
+        return Users().add(jdata())
 
-@app.route('/api/users/<name>/', methods=['GET'])
+@app.route('/api/groups/', methods=['GET','POST'])
 @requires_auth
 @returns_json
-def get_user(name):
-    return Users().lookup(name)
+def groups_service():
+    if request.method == 'GET':
+        return Groups().list()
+    elif request.method == 'POST':
+        return Groups().add(jdata())
 
-@app.route('/api/users/<name>/', methods=['PUT'])
-@requires_auth
-@returns_json
-def edit_user(name):
-    return Users().edit(name, jdata())
-
-@app.route('/api/users/<name>/', methods=['DELETE'])
-@requires_auth
-@returns_json
-def delete_user(name):
-    return Users().delete(name)
-
-@app.route('/api/groups/', methods=['GET'])
-@requires_auth
-@returns_json
-def list_groups():
-    return Groups().list()
-
-@app.route('/api/groups/', methods=['POST'])
-@requires_auth
-@returns_json
-def add_group():
-    return Groups().add(jdata())
-
-@app.route('/api/groups/<name>/', methods=['GET'])
+@app.route('/api/groups/<name>', methods=['GET','PUT','DELETE'])
 @requires_auth
 @returns_json
 def get_group(name):
-    return Groups().lookup(name)
+    if request.method == 'GET':
+        return Groups().lookup(name)
+    elif request.method == 'PUT':
+        return Groups().edit(name, jdata())
+    elif request.method == 'DELETE':
+        return Groups().delete(name)
 
-@app.route('/api/groups/<name>/', methods=['PUT'])
-@requires_auth
-@returns_json
-def edit_group(name):
-    return Groups().edit(name, jdata())
-
-@app.route('/api/groups/<name>/', methods=['DELETE'])
-@requires_auth
-@returns_json
-def delete_group(name):
-    return Groups().delete(name)
-
-@app.route('/api/hosts/', methods=['GET'])
+@app.route('/api/hosts/', methods=['GET','POST'])
 @requires_auth
 @returns_json
 def list_hosts():
-    return Hosts().list()
+    if request.method == 'GET':
+        return Hosts().list()
+    elif request.method == 'POST':
+        return Hosts().add(jdata())
 
-@app.route('/api/hosts/', methods=['POST'])
-@requires_auth
-@returns_json
-def add_host():
-    return Hosts().add(jdata())
-
-@app.route('/api/hosts/<name>', methods=['GET'])
+@app.route('/api/hosts/<name>', methods=['GET','PUT','DELETE'])
 @requires_auth
 @returns_json
 def get_host(name):
-    return Hosts().lookup(name)
-
-@app.route('/api/hosts/<name>', methods=['PUT'])
-@requires_auth
-@returns_json
-def edit_host(name):
-    return Hosts().edit(name, jdata())
-
-@app.route('/api/hosts/<name>', methods=['DELETE'])
-@requires_auth
-@returns_json
-def delete_host(name):
-    return Hosts().delete(name)
+    if request.method == 'GET':
+        return Hosts().lookup(name)
+    elif request.method == 'PUT':
+        return Hosts().edit(name, jdata())
+    elif request.method == 'DELETE':
+        return Hosts().delete(name)
 
 @app.route('/api/inventory/hosts/<name>', methods=['GET'])
 @returns_json
 def inventory_host_info(name):
     return Hosts().lookup(name)['_blended_vars']
 
-@app.route('/api/inventory/index/', methods=['GET'])
+@app.route('/api/inventory/index', methods=['GET'])
 @returns_json
 def inventory_index():
     groups = Groups().list()

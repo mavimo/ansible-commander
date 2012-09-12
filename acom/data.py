@@ -160,16 +160,10 @@ class Base(object):
 
         primary = self.FIELDS['primary']
         self.check_required_fields(properties, edit=True, internal=internal)
-        result_name = name
-        
-        if primary in properties and name != properties[primary]:
-            try:
-                matches = self.lookup(properties[primary], internal=True)
-                raise AlreadyExists()
-            except DoesNotExist:
-                pass
-            result_name = properties[primary]
-            
+ 
+        if primary in properties and properties[primary] != name:
+            raise Exception("renames are not supported, delete and re-add")
+
         match = self.lookup(name, internal=True)
         id = match['id']
 
@@ -180,10 +174,10 @@ class Base(object):
             elif match[k] != properties[k]:
                 self._update_kv(id,k,v)
         
-        match = self.lookup(result_name, internal=True)
+        match = self.lookup(name, internal=True)
         if not hook:
-            self.compute_derived_fields_on_edit(result_name, match)
-        match = self.lookup(result_name, internal=internal)
+            self.compute_derived_fields_on_edit(name, match)
+        match = self.lookup(name, internal=internal)
         return match
 
     def _insert_kv(self, id, k, v):
@@ -314,6 +308,7 @@ class Base(object):
         """
         cur.execute(sth, [id])
         conn.commit()
+        return dict()
 
     def clear_test_data(self):
         if not TESTMODE:
