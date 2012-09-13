@@ -26,7 +26,7 @@ Dependencies
 * python 2.6 or greater
 * python-psycopg2, a Python database library
 * Flask, a Python web framework
-* PostgreSQL & PostgreSQL contrib (for hstore)
+* PostgreSQL server
 * optional Apache or Nginx fronting for the Flask service
 
 Setup The Database
