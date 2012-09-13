@@ -1,0 +1,12 @@
+*.py[co]
+build
+# Emacs backup files...
+*~
+.\#*
+# (s)rpm building stuff
+MANIFEST
+dist
+rpm-build
+# Eclipse/PyDev stuff...
+.project
+.pydevproject
