@@ -31,6 +31,12 @@ dbname  = 'ansible_commander'
 dbuser  = 'ansible_commander'
 dbpass  = parser.get('database', 'password')
 
+# this code is used such that only certain hosts will be able to view
+# inventory variables (since inventory scripts don't have to log in,
+# we do require that they know this code)
+
+inventory_secret = parser.get('inventory', 'secret')
+
 TESTMODE=False
 
 def connect(testmode=False):

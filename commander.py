@@ -58,6 +58,15 @@ def authenticate(msg='Authenticate'):
     resp.headers['WWW-Authenticate'] = 'Basic realm="Ansible Commander"'
     return resp
 
+def requires_inventory_secret(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        data = flask.request.data
+        if data != acom_data.inventory_secret:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -152,12 +161,14 @@ def host_service(name):
     elif request.method == 'DELETE':
         return Hosts().delete(name)
 
-@app.route('/api/inventory/hosts/<name>', methods=['GET'])
+@app.route('/api/inventory/hosts/<name>', methods=['POST'])
+@requires_inventory_secret
 @returns_json
 def inventory_host_info(name):
     return Hosts().lookup(name)['_blended_vars']
 
-@app.route('/api/inventory/index', methods=['GET'])
+@app.route('/api/inventory/index', methods=['POST'])
+@requires_inventory_secret
 @returns_json
 def inventory_index():
     groups = Groups().list()
