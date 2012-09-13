@@ -42,10 +42,9 @@ We've kept software requirements reasonably minimal, so this is mostly about con
 
 1. Install ansible if you haven't done so already.
 
-2. Change the inventory secret key.  edit config/config.j2 to set a secret key that will be used by the inventory script. This is not usable for REST API logins and is only a basic measure to make sure host variables aren't exposed to hosts that don't need to see them.  It is used for no other purpose.
+2. Change the inventory secret key.  edit config/config.j2 to set a secret key that will be used by the inventory script. This is not usable for REST API logins and is only a basic measure to make sure host variables aren't exposed to hosts that don't need to see them.  It is used for no other purpose. If you have to change the secret later, it's in /etc/ansible/commander.cfg in the [inventory] section of the config file.
 
-3. Configure the database.  run ./setup.sh to use an ansible-playbook to configure ansible-commander.  It will prompt you for an initial database password.  This playbook does not use SSH to run and will adjust your local machine.  Pay attention to any errors that occur.  If you want to make changes, you can
-re-run the playbook, but it will not make any changes to the database password you initially specified, so use the same one.
+3. Configure the database.  run ./setup.sh to use an ansible-playbook to configure ansible-commander.  It will prompt you for an initial database password.  This playbook does not use SSH to run and will adjust your local machine.  Pay attention to any errors that occur.  If you want to make changes, you can re-run the playbook, but it will not make any changes to the database password you initially specified, so use the same one.
 
 4. Optionally proxy the Flask service with Apache or nginx.  This is very much recommended for production usage rather than using the built-in serving capability in Flask.  (Example snippets will be provided soon).
 
