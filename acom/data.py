@@ -17,9 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
-import psycopg2
+import sqlite3
 import ConfigParser
-import psycopg2.extras as extras
 import json
 import time
 
@@ -27,24 +26,19 @@ import time
 parser  = ConfigParser.ConfigParser()
 parser.read("/etc/ansible/commander.cfg")
 
-dbname  = 'ansible_commander'
-dbuser  = 'ansible_commander'
-dbpass  = parser.get('database', 'password')
+dbfile  = parser.get('database', 'file')
 
 # this code is used such that only certain hosts will be able to view
 # inventory variables (since inventory scripts don't have to log in,
 # we do require that they know this code)
 
-inventory_secret = parser.get('inventory', 'secret')
-
 TESTMODE=False
 
 def connect(testmode=False):
-   global dbname
+   global dbfile
    if TESTMODE:
-       dbname = "%s_test" % dbname
-   connstr = "dbname='%s' user='%s' host='localhost' password='%s'" % (dbname,dbuser,dbpass)
-   return psycopg2.connect(connstr)
+      dbfile = "%s_test" % dbfile
+   return sqlite3.connect(dbfile + '.db', check_same_thread = False)
 
 conn = connect()
 
@@ -139,18 +133,17 @@ class Base(object):
             pass
         cur = self.cursor()
         sth = """
-            INSERT INTO thing (type) VALUES (%s)
-            RETURNING id
+            INSERT INTO thing (type) VALUES (?)
         """
         cur.execute(sth, [self.TYPE])
-        tid = cur.fetchone()[0]
+        tid = cur.lastrowid
 
         inserts = []
         for (k,v) in properties.iteritems():
             inserts.append((tid, k, json.dumps(v)))
-    
+
         sth = """
-            INSERT INTO properties (thing_id,key,value) VALUES(%s,%s,%s)
+            INSERT INTO properties (thing_id,key,value) VALUES(?, ?, ?)
         """
         cur.executemany(sth, inserts)
         conn.commit()
@@ -219,8 +212,8 @@ class Base(object):
              SELECT t.id, p.id, p.key, p.value 
              FROM thing t
              LEFT JOIN properties p
-             ON p.thing_id = t.id 
-             WHERE t.type = %s
+             ON p.thing_id = t.id
+             WHERE t.type = ?
         """
 
         cur.execute(sth, [self.TYPE])
@@ -321,7 +314,7 @@ class Base(object):
             raise Exception("only supported in TESTMODE")
         cur = self.cursor()
         sth = """
-            DELETE from thing where type=%s
+            DELETE FROM thing WHERE type = ?
         """
         cur.execute(sth, [self.TYPE])
         conn.commit()
